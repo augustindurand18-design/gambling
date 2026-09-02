@@ -5,8 +5,16 @@ prouve par photo vérifiée. Objectif tenu, rien n'est débité. Objectif non te
 et non contesté, la mise est prélevée — une part est reversée à une association
 choisie par l'utilisateur.
 
-Le cadrage produit complet (modèle économique, contraintes juridiques,
-périmètre) est dans [`CLAUDE.md`](CLAUDE.md).
+## Par où commencer
+
+| Vous voulez… | Lisez |
+|---|---|
+| Installer et lancer le projet | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
+| Comprendre les choix techniques et ce qu'il ne faut pas casser | [`docs/architecture.md`](docs/architecture.md) |
+| Le contexte produit, le modèle économique, l'avancement | [`CLAUDE.md`](CLAUDE.md) |
+
+État actuel : **backend et domaine posés, interface à construire.**
+64 tests passent (24 base, 21 fonctions, 19 iOS).
 
 ## Structure
 

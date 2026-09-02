@@ -1,4 +1,45 @@
-# Nouveau SaaS — Contexte projet
+# Gage — Contexte projet
+
+> **Nouveau sur ce dépôt ?** Lisez [`CONTRIBUTING.md`](CONTRIBUTING.md) pour
+> l'installation, puis [`docs/architecture.md`](docs/architecture.md) pour les
+> garanties du système. Ce fichier-ci porte le contexte produit et les
+> décisions ; l'architecture explique le code.
+
+## Équipe
+
+Augustin (produit, design, code) et un développeur. Les deux travaillent avec
+Claude Code. Le dépôt est public : ne jamais y committer de secret, de donnée
+personnelle ou de contenu de consentement réel.
+
+## Règles de travail pour Claude Code
+
+**Avant de toucher au paiement ou à la vérification**, lire
+`docs/architecture.md` — les invariants n'y sont pas devinables depuis le code.
+
+**Cinq choses à ne jamais casser** (détail dans `docs/architecture.md`) :
+1. la base fait autorité sur les transitions d'état, service role compris ;
+2. on ne débite jamais sur un doute — toute ambiguïté part en revue humaine ;
+3. les consentements sont immuables, y compris pour le service role ;
+4. l'instant du contrôle surprise n'est jamais lisible par le client ;
+5. la caméra est le seul accès aux médias, aucune photothèque.
+
+**Machine à états** : toute modification doit être faite des **deux côtés**,
+`supabase/migrations/0015_state_machine_trigger.sql` et
+`ios/Gage/Domain/GoalStateMachine.swift`. Aucune vérification automatique ne
+détecte une divergence.
+
+**Toujours exécuter les tests, jamais se contenter de les lire.** Trois failles
+réelles (RLS, triggers, permissions de schéma) n'étaient pas visibles à la
+lecture et n'ont été trouvées qu'en lançant le schéma contre une vraie base.
+
+```bash
+supabase test db                                      # 24 tests
+deno test supabase/functions --allow-env --no-check   # 21 tests
+./scripts/ios-test.sh                                 # 19 tests
+```
+
+**Langue** : documentation, commentaires et commits en français ; code et
+schéma en anglais ; textes destinés à l'utilisateur en français.
 
 ## Objectif
 Concevoir et lancer un **SaaS B2C** rentable, à destination du marché **français / francophone**.
@@ -83,15 +124,32 @@ Familles retenues : (a) **présence dans un lieu** (géofence + photo horodatée
 Capture **uniquement via caméra intégrée à l'app** (pas d'upload galerie) ; **fenêtre horaire aléatoire** (notif surprise dans le créneau choisi) ; horodatage + GPS **côté serveur** ; détection "photo d'écran" par l'IA ; échantillon aléatoire de revues humaines même sur preuves validées.
 
 ## Où en est-on
-- [x] Cadrage des contraintes
-- [x] Recherche d'idées + analyse concurrentielle
-- [x] Choix de l'idée — **verrouillée le 2026-09-02**
-- [ ] **Stack technique** (en cours) → puis cahier des charges
-- [ ] Poser à Apple (écrit, pré-soumission) la question "real money gaming" / classement d'âge
+
+### Fait
+- [x] Cadrage produit, recherche d'idées, analyse concurrentielle
+- [x] Idée verrouillée (2026-09-02)
+- [x] Stack technique arrêtée
+- [x] **Schéma complet** : 18 migrations, RLS, machine à états en trigger, RPC `commit_goal` — 24 tests pgTAP
+- [x] **Pipeline de vérification** : anti-triche serveur, prompts, routage conservateur — 21 tests Deno
+- [x] **Squelette iOS** : modèles, machine à états client, config, APNs — 19 tests, compile sur simulateur
+
+### En cours / à faire — code
+- [ ] RPC `transition_goal` (**dette connue** : `functions/_shared/db.ts` l'appelle déjà, elle n'existe pas en migration)
+- [ ] Edge Functions Stripe : `stripe-setup-intent`, `stripe-webhook`, `stripe-charge-stake`
+- [ ] Edge Function `verify-proof` (assemblage — les briques existent)
+- [ ] Notifications : `schedule-notifications`, `send-push`, `close-expired`
+- [ ] `dispute-intake`, `weekly-assiduity`, `purge-proofs`
+- [ ] Caméra AVFoundation + pré-filtre Apple Vision
+- [ ] Interface iOS (dépend du design Figma)
+- [ ] Abonnement IAP + RevenueCat (reporté après la bêta)
+
+### À faire — hors code (bloquant à terme)
+- [ ] **Compte Stripe** (mode test) — bloque tout le paiement
+- [ ] **Compte Apple Developer** — bloque TestFlight, push réels, Sign in with Apple sur appareil
+- [ ] Question écrite à Apple : la mécanique de mise est-elle du « real money gaming » ?
 - [ ] Consultation juridique (jeu d'argent / clause pénale / consentement débit / RGPD)
 - [ ] Design iOS (onboarding + écrans de consentement en priorité)
-- [ ] Définir la liste précise des situations vérifiables (après la stack)
-- [ ] MVP iOS
+- [ ] Projet Supabase cloud région Francfort (local uniquement pour l'instant)
 
 ## Décisions
 _(date + décision + raison)_
@@ -140,6 +198,29 @@ Semaine 2 : J6 Edge Function vérif Claude vision + détection photo d'écran ·
 ### Hors compteur 2 semaines
 Revue App Store publique (prévoir ≥ 1 rejet, allers-retours 1-2 sem) · feu vert juriste · entitlement FamilyControls · affinage qualité vérif IA (semaines).
 
+## Valeurs de configuration en vigueur
+
+Toutes provisoires, isolées en constantes. À arbitrer (voir `docs/architecture.md` §8).
+
+| Paramètre | Valeur | Où |
+|---|---|---|
+| Part reversée à l'association | 25 % (2500 bps) | `AppConfig.swift`, `stakes.charity_bps` |
+| Plafond par objectif | 30 € | `profiles.per_goal_cap_cents` |
+| Plafond mensuel | 150 € | `profiles.monthly_cap_cents` |
+| Seuil de revue humaine | 20 € | `routing.ts` |
+| Relecture aléatoire | 5 % des validations | `routing.ts` |
+| Seuil de confiance du modèle | 0,8 | `routing.ts` |
+| Objectifs/semaine pour la remise | 3 | `app.assiduity_threshold()` |
+| Rétention des photos | 60 j | `purge-proofs` (à écrire) |
+
 ## Conventions de travail
-- Docs de recherche en français, dans `docs/`.
-- Toute idée retenue passe par une fiche : problème / cible / concurrents / monétisation / risque #1 / test de validation.
+- Documentation, commentaires et commits en **français** ; code et schéma en **anglais** ; textes utilisateur en français.
+- Migrations numérotées, **en avant seulement** — on ne modifie jamais une migration poussée.
+- Le projet Xcode est **généré** par XcodeGen depuis `ios/project.yml` : modifier le YAML, jamais le projet dans Xcode.
+- Docs de recherche dans `docs/`.
+- Ne jamais télécharger un runtime de simulateur depuis l'interface Xcode — utiliser `xcodebuild -downloadPlatform iOS`. Les deux en parallèle créent des doublons qui cassent le montage.
+
+## Historique des incidents (pour ne pas les refaire)
+- **2026-09-02** — Le trigger de la machine à états échouait sur une erreur de permission pour tout appel client : le rôle `authenticated` n'avait pas accès au schéma `app`. La garde qui protège l'argent ne s'exécutait donc jamais dans le cas qui compte. Trouvé en exécutant, invisible à la lecture.
+- **2026-09-02** — Le journal d'audit se faisait refuser par sa propre RLS dès qu'une transition venait d'un client. Corrigé en passant les triggers en `security definer`.
+- **2026-09-02** — Runtime de simulateur iOS téléchargé simultanément par Xcode et en ligne de commande → trois images en double, toutes invalidées, asset purgé. 8 Go à retélécharger.
