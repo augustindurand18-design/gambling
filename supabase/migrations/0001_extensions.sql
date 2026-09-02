@@ -9,3 +9,13 @@ create extension if not exists pg_net with schema extensions;
 
 -- Schema applicatif pour les fonctions internes (garde public propre)
 create schema if not exists app;
+
+-- Les triggers du schema app s'executent avec les droits de l'appelant. Sans
+-- ces droits, une simple ecriture cliente echouerait sur une erreur de
+-- permission au lieu d'etre evaluee par la machine a etats.
+-- Ces fonctions sont soit pures (tables de verite), soit des gardes : les
+-- exposer ne donne acces a aucune donnee.
+grant usage on schema app to authenticated, anon, service_role;
+
+alter default privileges in schema app
+  grant execute on functions to authenticated, anon, service_role;

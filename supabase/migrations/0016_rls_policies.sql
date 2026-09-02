@@ -37,8 +37,11 @@ returns trigger
 language plpgsql
 as $$
 begin
-  -- Le service role (Edge Functions) a tous les droits.
-  if (select auth.role()) = 'service_role' then
+  -- La protection ne vise que les appels clients. Les Edge Functions
+  -- (service_role), les migrations et l'administration passent librement.
+  -- On teste le role effectif plutot que les claims JWT : une session psql
+  -- d'administration peut porter des claims residuels sans etre un client.
+  if current_role not in ('authenticated', 'anon') then
     return new;
   end if;
 

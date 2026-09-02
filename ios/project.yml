@@ -14,6 +14,11 @@ settings:
     CURRENT_PROJECT_VERSION: "1"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     SWIFT_STRICT_CONCURRENCY: complete
+    # Aucun compte Apple Developer pour l'instant : on cible le simulateur,
+    # qui n'exige pas de signature.
+    CODE_SIGNING_ALLOWED: NO
+    CODE_SIGNING_REQUIRED: NO
+    CODE_SIGN_IDENTITY: ""
 
 configs:
   Debug: debug
@@ -60,12 +65,10 @@ targets:
         INFOPLIST_KEY_GageStripePublishableKey: $(STRIPE_PUBLISHABLE_KEY)
         INFOPLIST_KEY_GageSentryDSN: $(SENTRY_DSN)
         INFOPLIST_KEY_GageTelemetryDeckAppID: $(TELEMETRYDECK_APP_ID)
-    entitlements:
-      path: Gage/Gage.entitlements
-      properties:
-        aps-environment: development
-        com.apple.developer.applesignin:
-          - Default
+    # Entitlements desactives tant qu'il n'y a pas de compte Apple Developer :
+    # aps-environment et Sign in with Apple exigent un profil de provisioning.
+    # Le simulateur n'a besoin d'aucune signature. A reactiver le jour de
+    # l'inscription au programme (voir Gage.entitlements, deja pret).
     dependencies:
       - package: Supabase
         product: Supabase

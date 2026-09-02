@@ -73,7 +73,7 @@ select lives_ok(
 select throws_ok(
   $$ update public.goals set state = 'charge_ok'
      where id = '44444444-4444-4444-4444-444444444444' $$,
-  'check_violation',
+  '23514',
   null,
   'Une transition illegale est rejetee par la base, meme en service role'
 );
@@ -82,7 +82,7 @@ select throws_ok(
 select throws_ok(
   $$ update public.goals set title = 'Titre modifie apres coup'
      where id = '44444444-4444-4444-4444-444444444444' $$,
-  'check_violation',
+  '23514',
   null,
   'Le contenu d''un objectif engage ne peut plus etre modifie'
 );

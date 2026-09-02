@@ -80,9 +80,14 @@ as $$
 $$;
 
 -- Garde + journalisation automatique de chaque changement d'etat.
+-- security definer : le journal d'audit doit etre ecrit quel que soit
+-- l'appelant. Sans cela, une transition declenchee par un client serait
+-- rejetee par la RLS de goal_state_transitions au lieu d'etre tracee.
 create or replace function app.enforce_goal_transition()
 returns trigger
 language plpgsql
+security definer
+set search_path = public, app
 as $$
 begin
   if new.state is distinct from old.state then
@@ -118,6 +123,8 @@ create trigger goals_enforce_transition
 create or replace function app.log_goal_creation()
 returns trigger
 language plpgsql
+security definer
+set search_path = public, app
 as $$
 begin
   insert into public.goal_state_transitions
