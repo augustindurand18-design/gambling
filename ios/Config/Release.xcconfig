@@ -1,0 +1,7 @@
+#include? "Secrets.xcconfig"
+
+GAGE_ENV = release
+
+CODE_SIGN_STYLE = Automatic
+SWIFT_COMPILATION_MODE = wholemodule
+VALIDATE_PRODUCT = YES

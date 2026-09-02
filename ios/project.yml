@@ -1,0 +1,117 @@
+name: Gage
+
+options:
+  bundleIdPrefix: com.augustindurand
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    SWIFT_STRICT_CONCURRENCY: complete
+
+configs:
+  Debug: debug
+  Release: release
+
+packages:
+  Supabase:
+    url: https://github.com/supabase/supabase-swift
+    from: "2.20.0"
+  StripePaymentSheet:
+    url: https://github.com/stripe/stripe-ios
+    from: "24.0.0"
+  Sentry:
+    url: https://github.com/getsentry/sentry-cocoa
+    from: "8.40.0"
+  TelemetryDeck:
+    url: https://github.com/TelemetryDeck/SwiftSDK
+    from: "2.5.0"
+
+targets:
+  Gage:
+    type: application
+    platform: iOS
+    sources:
+      - path: Gage
+    configFiles:
+      Debug: Config/Debug.xcconfig
+      Release: Config/Release.xcconfig
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.augustindurand.gage
+        PRODUCT_NAME: Gage
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Gage
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        # La camera est le seul acces media : pas d'entree photothèque, par conception.
+        INFOPLIST_KEY_NSCameraUsageDescription: "Gage utilise l'appareil photo pour capturer la preuve de tes objectifs. Les photos sont prises uniquement dans l'application."
+        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "La position sert uniquement a verifier que tu es bien au lieu que tu as choisi pour ton objectif."
+        # Valeurs injectees depuis Config/Secrets.xcconfig
+        INFOPLIST_KEY_GageSupabaseURL: $(SUPABASE_URL)
+        INFOPLIST_KEY_GageSupabaseAnonKey: $(SUPABASE_ANON_KEY)
+        INFOPLIST_KEY_GageStripePublishableKey: $(STRIPE_PUBLISHABLE_KEY)
+        INFOPLIST_KEY_GageSentryDSN: $(SENTRY_DSN)
+        INFOPLIST_KEY_GageTelemetryDeckAppID: $(TELEMETRYDECK_APP_ID)
+    entitlements:
+      path: Gage/Gage.entitlements
+      properties:
+        aps-environment: development
+        com.apple.developer.applesignin:
+          - Default
+    dependencies:
+      - package: Supabase
+        product: Supabase
+      - package: StripePaymentSheet
+        product: StripePaymentSheet
+      - package: Sentry
+        product: Sentry
+      - package: TelemetryDeck
+        product: TelemetryDeck
+
+  GageTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: GageTests
+    dependencies:
+      - target: Gage
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.augustindurand.gage.tests
+        GENERATE_INFOPLIST_FILE: YES
+
+  GageUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: GageUITests
+    dependencies:
+      - target: Gage
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.augustindurand.gage.uitests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  Gage:
+    build:
+      targets:
+        Gage: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: true
+      targets:
+        - GageTests
+        - GageUITests
+    archive:
+      config: Release

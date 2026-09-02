@@ -1,0 +1,32 @@
+# macOS
+.DS_Store
+
+# Xcode / iOS
+ios/*.xcodeproj/
+ios/*.xcworkspace/
+ios/DerivedData/
+ios/build/
+ios/.swiftpm/
+ios/Config/Secrets.xcconfig
+*.xcuserstate
+xcuserdata/
+
+# On garde le Package.resolved pour la reproductibilite SPM
+!**/xcshareddata/swiftpm/Package.resolved
+
+# Secrets
+**/.env
+**/.env.*
+!**/.env.example
+
+# Supabase
+supabase/.branches/
+supabase/.temp/
+
+# Node / Deno
+node_modules/
+.deno/
+
+# Divers
+*.log
+build/
