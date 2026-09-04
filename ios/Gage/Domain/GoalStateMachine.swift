@@ -150,8 +150,8 @@ struct GoalTransitionContext: Sendable {
     var isBlockedForPayment: Bool = false
     var outstandingBalanceCents: Int = 0
     var hasPaymentMethod: Bool = false
-    var perGoalCapCents: Int = 3_000
-    var monthlyCapCents: Int = 15_000
+    var perGoalCapCents: Int = BusinessRules.defaultPerGoalCapCents
+    var monthlyCapCents: Int = BusinessRules.defaultMonthlyCapCents
     var monthCommittedCents: Int = 0
 
     // Objectif

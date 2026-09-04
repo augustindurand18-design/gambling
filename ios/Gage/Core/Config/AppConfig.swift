@@ -78,7 +78,7 @@ enum BusinessRules {
 
     /// Plafonds par defaut, ajustables par l'utilisateur dans les limites
     /// acceptees a l'onboarding.
-    static let defaultPerGoalCapCents = 3_000    // 30 EUR
+    static let defaultPerGoalCapCents = 10_000   // 100 EUR
     static let defaultMonthlyCapCents = 15_000   // 150 EUR
 
     /// Part de la mise reversee a l'association, en points de base.
@@ -86,4 +86,17 @@ enum BusinessRules {
 
     /// Bornes de saisie d'une mise.
     static let minStakeCents = 100               // 1 EUR
+
+    /// Mise proposee par defaut a l'onboarding.
+    static let defaultStakeCents = 2_500         // 25 EUR
+
+    /// Pas de la roue de selection de mise.
+    static let stakeStepCents = 500              // 5 EUR
+
+    /// Montants proposes dans la roue : du pas jusqu'au plafond par objectif.
+    /// Le plafond vient du profil ; le serveur reste seul juge a l'engagement.
+    static func suggestedStakes(upTo capCents: Int) -> [Int] {
+        guard capCents >= stakeStepCents else { return [capCents] }
+        return Array(stride(from: stakeStepCents, through: capCents, by: stakeStepCents))
+    }
 }

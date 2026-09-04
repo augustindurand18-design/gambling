@@ -110,7 +110,7 @@ Familles retenues : (a) **présence dans un lieu** (géofence + photo horodatée
 - À chaque objectif : affichage conditions + mode de vérif + montant → **confirmation explicite d'un tap** (« Engager X € »), jamais pré-coché, **pas de re-saisie de carte**.
 - Enregistrement horodaté + versionné du consentement (montant, conditions, deadline, 4 derniers chiffres, part asso).
 - Débit sur échec non contesté = `PaymentIntent` off-session, silencieux.
-- Mises plafonnées bas au lancement (~30 €) pour limiter les refus SCA.
+- Plafond par mise à 100 € (2026-09-03). Plus le montant monte, plus la banque risque d'exiger une SCA sur un débit off-session : à surveiller en bêta.
 - **À spécifier dans le cahier des charges** : parcours de secours si SCA exigée par la banque.
 
 ### Échec d'encaissement d'une mise (décidé 2026-09-02)
@@ -161,6 +161,7 @@ _(date + décision + raison)_
 - 2026-09-02 : objectifs limités au **strictement vérifiable** (photo, géofence, Screen Time, exports d'apps).
 - 2026-09-02 : **app 100 % native, tout in-app, commission Apple acceptée. Abo = IAP StoreKit 2 (15 % SBP). Mises = Stripe. Paddle abandonné. Cible = France.**
 - 2026-09-02 : prix variable 25 €→5 € géré via **2 produits StoreKit dans un même groupe d'abonnement** (bascule au renouvellement) + offres promo. Revoir la voie DMA UE seulement si trop rigide.
+- 2026-09-03 : **plafond par objectif porté de 30 € à 100 €** (roue de mise de 5 € à 100 €, pas de 5 €). S'applique aux nouveaux profils uniquement — migration `0019`. Le plafond mensuel reste à 150 €, à revoir : il n'autorise plus qu'une mise maximale par mois.
 
 ## Stack pressentie (en cours de décision — 2026-09-02)
 - **iOS** : Swift + SwiftUI (iOS 17+). Natif obligatoire à cause de FamilyControls/DeviceActivity (Screen Time), CoreLocation (géofence), AVFoundation (caméra in-app anti-triche), StoreKit 2.
@@ -205,7 +206,7 @@ Toutes provisoires, isolées en constantes. À arbitrer (voir `docs/architecture
 | Paramètre | Valeur | Où |
 |---|---|---|
 | Part reversée à l'association | 25 % (2500 bps) | `AppConfig.swift`, `stakes.charity_bps` |
-| Plafond par objectif | 30 € | `profiles.per_goal_cap_cents` |
+| Plafond par objectif | 100 € | `profiles.per_goal_cap_cents` |
 | Plafond mensuel | 150 € | `profiles.monthly_cap_cents` |
 | Seuil de revue humaine | 20 € | `routing.ts` |
 | Relecture aléatoire | 5 % des validations | `routing.ts` |
