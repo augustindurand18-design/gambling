@@ -10,6 +10,9 @@ struct PrimaryButton: View {
     /// Masquer la fleche pour les actions qui ne font pas avancer un parcours
     /// (confirmation sur place, par exemple).
     var showsChevron: Bool = true
+    /// Un bouton eteint reste visible et lisible : il montre ou mene l'ecran
+    /// avant meme que le choix soit fait.
+    var isEnabled: Bool = true
     let action: () -> Void
 
     var body: some View {
@@ -22,11 +25,18 @@ struct PrimaryButton: View {
                 }
             }
             .font(Theme.Fonts.button)
-            .foregroundStyle(Theme.Colors.onBrand)
+            .foregroundStyle(isEnabled ? Theme.Colors.onBrand : Theme.Colors.inkFaded)
             .frame(maxWidth: .infinity, minHeight: 61)
-            .background(Theme.Gradients.brand, in: .capsule)
+            .background {
+                if isEnabled {
+                    Capsule().fill(Theme.Gradients.brand)
+                } else {
+                    Capsule().fill(Theme.Colors.disabledFill)
+                }
+            }
         }
         .buttonStyle(PressScaleButtonStyle())
+        .disabled(!isEnabled)
     }
 }
 

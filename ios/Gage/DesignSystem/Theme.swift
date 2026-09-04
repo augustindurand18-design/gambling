@@ -35,6 +35,28 @@ enum Theme {
         static let dotInactive = Color(hex: 0xCBD2D9)
         /// Halo cyan decoratif du fond.
         static let glow = Color(hex: 0x56B4E8)
+        /// Fond d'une carte choisie, teinte tres claire de la marque.
+        static let cardSelected = Color(hex: 0xF2F0FE)
+        /// Filets de separation des blocs de recapitulatif.
+        static let divider = Color(hex: 0xE3E8EE)
+        /// Trace de la signature.
+        static let signature = Color(hex: 0x141B3C)
+        /// Remplissage d'une action encore indisponible.
+        static let disabledFill = Color(hex: 0xE7EAEF)
+
+        // Etats d'un defi. Trois teintes suffisent : ce qui est tenu, ce qui
+        // est perdu, ce qui attend un geste. Elles ne portent jamais seules
+        // l'information — un libelle les accompagne toujours.
+        /// Objectif tenu.
+        static let kept = Color(hex: 0x2E9E6B)
+        /// Objectif non tenu, mise perdue.
+        static let failed = Color(hex: 0xD9544D)
+        /// Un geste est attendu de l'utilisateur.
+        static let attention = Color(hex: 0xCE8524)
+        /// Journee sans objectif dans la grille de regularite.
+        static let calendarEmpty = Color(hex: 0xE3E8EE)
+        /// Creme du bas du degrade de fond.
+        static let backgroundBottom = Color(hex: 0xFCFAE9)
     }
 
     // MARK: - Degrades
@@ -46,8 +68,16 @@ enum Theme {
             stops: [
                 .init(color: Color(hex: 0xEFF1FD), location: 0.00),
                 .init(color: Color(hex: 0xE9F5EE), location: 0.45),
-                .init(color: Color(hex: 0xFCFAE9), location: 1.00)
+                .init(color: Colors.backgroundBottom, location: 1.00)
             ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+
+        /// Voile pose sous une action flottante : le contenu qui defile passe
+        /// dessous sans venir se lire au travers du bouton.
+        static let bottomFade = LinearGradient(
+            colors: [Colors.backgroundBottom.opacity(0), Colors.backgroundBottom],
             startPoint: .top,
             endPoint: .bottom
         )
@@ -76,6 +106,26 @@ enum Theme {
         static let button = Font.system(size: 19, weight: .semibold, design: .rounded)
         static let footnote = Font.system(size: 15, weight: .medium, design: .rounded)
         static let footnoteEmphasis = Font.system(size: 15, weight: .bold, design: .rounded)
+        /// Phrase de l'objectif en cours de composition.
+        static let sentence = Font.system(size: 26, weight: .bold, design: .rounded)
+        /// Segment aligne dans le cadre d'une roue de mots.
+        static let option = Font.system(size: 21, weight: .semibold, design: .rounded)
+        /// Segments voisins, non selectionnes.
+        static let optionMuted = Font.system(size: 19, weight: .medium, design: .rounded)
+        /// Intitule de section en capitales espacees.
+        static let sectionLabel = Font.system(size: 12, weight: .bold, design: .rounded)
+        /// Sous-titre d'une carte de preuve.
+        static let cardSubtitle = Font.system(size: 13, weight: .regular, design: .rounded)
+        /// Montant rappele dans le recapitulatif d'engagement.
+        static let recapAmount = Font.system(size: 20, weight: .bold, design: .rounded)
+        /// Titre d'une section de l'accueil.
+        static let sectionTitle = Font.system(size: 19, weight: .bold, design: .rounded)
+        /// Pastille d'etat d'un defi.
+        static let badge = Font.system(size: 12, weight: .semibold, design: .rounded)
+        /// Chiffre mis en avant dans un bloc de statistiques.
+        static let stat = Font.system(size: 26, weight: .bold, design: .rounded)
+        /// Initiale de jour au-dessus de la grille de regularite.
+        static let calendarLegend = Font.system(size: 10, weight: .medium, design: .rounded)
     }
 
     // MARK: - Mesures
@@ -83,6 +133,17 @@ enum Theme {
     enum Metrics {
         static let cardHeight: CGFloat = 58
         static let cardRadius: CGFloat = 16
+        /// Hauteur d'une ligne dans une roue de mots.
+        static let wheelRow: CGFloat = 46
+        /// Hauteur d'une ligne dans la roue de montants.
+        static let amountRow: CGFloat = 98
+        /// Cadre de selection d'une roue, legerement plus bas que sa ligne.
+        static let wheelBandInset: CGFloat = 4
+        /// Zone de trace de la signature.
+        static let signatureHeight: CGFloat = 150
+        /// Piste et pastille du curseur d'engagement.
+        static let slideTrack: CGFloat = 61
+        static let slideKnob: CGFloat = 51
     }
 
     // MARK: - Espacement

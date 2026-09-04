@@ -1,10 +1,19 @@
 import SwiftUI
 
-/// Racine de navigation. Aiguille selon l'etat d'authentification et
-/// d'onboarding ; pour l'instant seul le parcours d'onboarding est maquette.
+/// Racine de navigation : onboarding au premier lancement, accueil ensuite.
+///
+/// L'aiguillage se fait pour l'instant en memoire, et l'accueil affiche un
+/// jeu de demonstration : ni la session ni les objectifs ne sont encore lus
+/// depuis Supabase.
 struct AppRootView: View {
+    @State private var hasOnboarded = false
+
     var body: some View {
-        OnboardingFlowView()
+        if hasOnboarded {
+            HomeView(snapshot: .sample)
+        } else {
+            OnboardingFlowView { hasOnboarded = true }
+        }
     }
 }
 

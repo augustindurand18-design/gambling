@@ -17,8 +17,8 @@ struct StakeAmountView: View {
         ScreenBackground(glow: .topTrailing) {
             VStack(alignment: .leading, spacing: 0) {
                 StepHeader(
-                    count: OnboardingStep.total,
-                    index: OnboardingStep.stakeAmount.index,
+                    count: NewGoalStep.total,
+                    index: NewGoalStep.stakeAmount.index,
                     onBack: { dismiss() }
                 )
 
