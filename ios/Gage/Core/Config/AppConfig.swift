@@ -84,6 +84,10 @@ enum BusinessRules {
     /// Part de la mise reversee a l'association, en points de base.
     static let charityBps = 2_500                // 25 %
 
+    /// Duree de conservation des photos de preuve, en jours.
+    /// Annoncee a l'utilisateur ; c'est `purge-proofs` qui l'applique.
+    static let proofRetentionDays = 60
+
     /// Bornes de saisie d'une mise.
     static let minStakeCents = 100               // 1 EUR
 

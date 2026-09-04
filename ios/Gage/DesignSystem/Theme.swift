@@ -76,8 +76,14 @@ enum Theme {
 
         /// Voile pose sous une action flottante : le contenu qui defile passe
         /// dessous sans venir se lire au travers du bouton.
+        /// Le voile doit etre opaque avant d'atteindre le bouton, sinon une
+        /// carte se lit encore derriere lui.
         static let bottomFade = LinearGradient(
-            colors: [Colors.backgroundBottom.opacity(0), Colors.backgroundBottom],
+            stops: [
+                .init(color: Colors.backgroundBottom.opacity(0), location: 0.00),
+                .init(color: Colors.backgroundBottom, location: 0.55),
+                .init(color: Colors.backgroundBottom, location: 1.00)
+            ],
             startPoint: .top,
             endPoint: .bottom
         )

@@ -14,7 +14,12 @@ struct OnboardingFlowView: View {
     var body: some View {
         WelcomeView(
             onStart: { isCreating = true },
-            onSignIn: { Log.app.debug("Accueil : Se connecter") }
+            // Raccourci provisoire : « Se connecter » ouvre directement
+            // l'accueil. Il n'y a encore aucune authentification — Sign in
+            // with Apple attend le compte Apple Developer, et la session
+            // Supabase attend le projet distant. A remplacer par le vrai
+            // parcours avant toute bêta : en l'etat, n'importe qui entre.
+            onSignIn: onFinished
         )
         .fullScreenCover(isPresented: $isCreating) {
             NewGoalFlowView {

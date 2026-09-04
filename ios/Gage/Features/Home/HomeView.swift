@@ -10,6 +10,7 @@ struct HomeView: View {
     let snapshot: HomeSnapshot
 
     @State private var isCreating = false
+    @State private var isShowingProfile = false
 
     var body: some View {
         ScreenBackground(glow: .topTrailing) {
@@ -38,10 +39,19 @@ struct HomeView: View {
         .fullScreenCover(isPresented: $isCreating) {
             NewGoalFlowView { isCreating = false }
         }
+        .sheet(isPresented: $isShowingProfile) {
+            ProfileView(assiduity: snapshot.assiduity)
+        }
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Spacer(minLength: 0)
+                ProfileButton { isShowingProfile = true }
+            }
+            .padding(.bottom, Theme.Spacing.small)
+
             Text("Tes défis")
                 .font(Theme.Fonts.display)
                 .foregroundStyle(Theme.Colors.ink)
@@ -50,7 +60,7 @@ struct HomeView: View {
                 .font(Theme.Fonts.body)
                 .foregroundStyle(Theme.Colors.inkMuted)
         }
-        .padding(.top, Theme.Spacing.medium)
+        .padding(.top, Theme.Spacing.small)
     }
 
     private var headerDetail: String {

@@ -93,21 +93,8 @@ final class OnboardingNavigationTests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
 
-        app.buttons["Commencer"].tap()
-        app.buttons.matching(
-            NSPredicate(format: "label BEGINSWITH %@", "Continuer avec")
-        ).firstMatch.tap()
+        composerJusquALEngagement(app)
 
-        XCTAssertTrue(app.buttons["Me lever"].waitForExistence(timeout: 5))
-        app.buttons["Me lever"].tap()
-        app.buttons["Continuer"].tap()
-
-        app.buttons.matching(
-            NSPredicate(format: "label BEGINSWITH %@", "Photo du lit fait")
-        ).firstMatch.tap()
-        app.buttons["Continuer"].tap()
-
-        XCTAssertTrue(app.staticTexts["LA CONSIGNE"].waitForExistence(timeout: 5))
         XCTAssertTrue(
             app.buttons["Signe pour débloquer"].exists,
             "Le curseur d'engagement doit rester verrouillé tant que rien n'est signé"
@@ -125,29 +112,31 @@ final class OnboardingNavigationTests: XCTestCase {
         attach(app, name: "07-engagement-signe")
     }
 
+    /// « Se connecter » mène droit à l'accueil, sans repasser par la
+    /// création d'un objectif.
+    func testSeConnecterOuvreLAccueil() {
+        let app = XCUIApplication()
+        app.launch()
+
+        let seConnecter = app.buttons["Se connecter"]
+        XCTAssertTrue(seConnecter.waitForExistence(timeout: 10), "Bouton de connexion absent")
+        seConnecter.tap()
+
+        XCTAssertTrue(
+            app.staticTexts["Tes défis"].waitForExistence(timeout: 5),
+            "La connexion n'a pas ouvert l'accueil"
+        )
+    }
+
     /// Une fois l'engagement signé, l'application bascule sur l'accueil et
     /// n'y revient plus : l'onboarding ne se rejoue pas.
     func testEngagementMeneALAccueil() {
         let app = XCUIApplication()
         app.launch()
 
-        app.buttons["Commencer"].tap()
-        app.buttons.matching(
-            NSPredicate(format: "label BEGINSWITH %@", "Continuer avec")
-        ).firstMatch.tap()
+        composerJusquALEngagement(app)
 
-        XCTAssertTrue(app.buttons["Me lever"].waitForExistence(timeout: 5))
-        app.buttons["Me lever"].tap()
-        app.buttons["Continuer"].tap()
-
-        app.buttons.matching(
-            NSPredicate(format: "label BEGINSWITH %@", "Photo du lit fait")
-        ).firstMatch.tap()
-        app.buttons["Continuer"].tap()
-
-        let zone = app.otherElements["signature-pad"]
-        XCTAssertTrue(zone.waitForExistence(timeout: 5))
-        zone.swipeRight()
+        app.otherElements["signature-pad"].swipeRight()
 
         // Le curseur se traverse d'un bout à l'autre : un geste court doit
         // revenir en arrière, c'est ce qui protège le débit d'un doigt posé
@@ -183,6 +172,65 @@ final class OnboardingNavigationTests: XCTestCase {
             "La grille de régularité n'est pas exposée"
         )
         attach(app, name: "10-regularite")
+
+        app.buttons["Profil et réglages"].tap()
+        XCTAssertTrue(
+            app.staticTexts["Plafond par objectif"].waitForExistence(timeout: 5),
+            "Le profil ne s'est pas ouvert depuis l'accueil"
+        )
+        attach(app, name: "11-profil")
+
+        app.buttons["Fermer"].tap()
+        XCTAssertTrue(
+            app.staticTexts["Ta régularité"].waitForExistence(timeout: 5),
+            "La fermeture du profil n'a pas ramené à l'accueil"
+        )
+    }
+
+    /// Mène de l'accueil de bienvenue jusqu'à l'écran d'engagement, objectif
+    /// composé et preuve choisie.
+    ///
+    /// Chaque écran est attendu avant d'être touché : les transitions sont
+    /// animées, et taper un bouton pendant l'animation donne un échec qui ne
+    /// dit rien du défaut réel.
+    private func composerJusquALEngagement(
+        _ app: XCUIApplication,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let commencer = app.buttons["Commencer"]
+        XCTAssertTrue(commencer.waitForExistence(timeout: 10), "Écran d'accueil absent", file: file, line: line)
+        commencer.tap()
+
+        let mise = app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Continuer avec")
+        ).firstMatch
+        XCTAssertTrue(mise.waitForExistence(timeout: 5), "Écran de mise absent", file: file, line: line)
+        mise.tap()
+
+        let verbe = app.buttons["Me lever"]
+        XCTAssertTrue(verbe.waitForExistence(timeout: 5), "Écran de composition absent", file: file, line: line)
+        verbe.tap()
+
+        let continuer = app.buttons["Continuer"]
+        XCTAssertTrue(continuer.waitForExistence(timeout: 5), "Suite du parcours absente", file: file, line: line)
+        continuer.tap()
+
+        let preuve = app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Photo du lit fait")
+        ).firstMatch
+        XCTAssertTrue(preuve.waitForExistence(timeout: 5), "Écran de preuve absent", file: file, line: line)
+        preuve.tap()
+        continuer.tap()
+
+        XCTAssertTrue(
+            app.staticTexts["LA CONSIGNE"].waitForExistence(timeout: 5),
+            "Écran d'engagement absent", file: file, line: line
+        )
+        XCTAssertTrue(
+            app.otherElements["signature-pad"].waitForExistence(timeout: 5),
+            "Zone de signature absente", file: file, line: line
+        )
     }
 
     private func attach(_ app: XCUIApplication, name: String) {
