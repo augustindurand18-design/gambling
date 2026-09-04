@@ -22,7 +22,9 @@ struct SlideToConfirm: View {
     var body: some View {
         GeometryReader { geometry in
             let maxOffset = max(0, geometry.size.width - knob - inset * 2)
-            let progress = maxOffset > 0 ? offset / maxOffset : 0
+            // Double explicite : mele a des litteraux, un CGFloat rend
+            // l'expression d'opacite ambigue a la compilation.
+            let progress: Double = maxOffset > 0 ? offset / maxOffset : 0
 
             ZStack(alignment: .leading) {
                 Capsule()
@@ -35,8 +37,10 @@ struct SlideToConfirm: View {
                     }
 
                 Text(isEnabled ? title : disabledTitle)
-                    .font(Theme.Fonts.button)
+                    // `foregroundStyle` d'abord : applique a un `Text`, `font`
+                    // est ambigu entre la surcharge de Text et celle de View.
                     .foregroundStyle(isEnabled ? Theme.Colors.brand : Theme.Colors.inkFaded)
+                    .font(Theme.Fonts.button)
                     .frame(maxWidth: .infinity)
                     .opacity(isEnabled ? max(0, 1 - progress * 1.8) : 1)
                     .allowsHitTesting(false)
