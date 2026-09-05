@@ -10,6 +10,8 @@ struct HomeView: View {
     @State private var store: HomeStore
     @State private var isCreating = false
     @State private var isShowingProfile = false
+    /// Defi dont la fiche est ouverte.
+    @State private var openedChallenge: ChallengeSummary?
 
     init(store: HomeStore = HomeStore()) {
         _store = State(wrappedValue: store)
@@ -61,6 +63,9 @@ struct HomeView: View {
         }
         .sheet(isPresented: $isShowingProfile) {
             ProfileView(assiduity: assiduity)
+        }
+        .sheet(item: $openedChallenge) { challenge in
+            ChallengeDetailView(challenge: challenge)
         }
     }
 
@@ -130,7 +135,7 @@ struct HomeView: View {
             } else {
                 ForEach(snapshot.challenges) { challenge in
                     ChallengeCard(challenge: challenge) {
-                        Log.app.debug("Accueil : defi ouvert \(challenge.id, privacy: .public)")
+                        openedChallenge = challenge
                     }
                 }
             }

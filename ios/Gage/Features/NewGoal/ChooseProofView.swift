@@ -3,11 +3,11 @@ import SwiftUI
 /// Choix de la preuve : toutes celles proposees conviennent a l'objectif, la
 /// question posee est seulement celle que l'utilisateur accepte de montrer.
 ///
-/// Aucun reglage technique n'est expose, et la phrase composee a l'etape
-/// precedente est rappelee sans pouvoir etre modifiee ici : revenir en
+/// Aucun reglage technique n'est expose, et la promesse definie aux etapes
+/// precedentes est rappelee sans pouvoir etre modifiee ici : revenir en
 /// arriere est le seul moyen de la changer, et ce retour efface la preuve.
 struct ChooseProofView: View {
-    @Binding var composition: GoalComposition
+    @Binding var plan: GoalPlan
     let onContinue: () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -21,7 +21,7 @@ struct ChooseProofView: View {
                     onBack: { dismiss() }
                 )
 
-                Text(composition.sentence)
+                Text(plan.sentence)
                     .font(Theme.Fonts.body)
                     .foregroundStyle(Theme.Colors.inkMuted)
                     .lineSpacing(3)
@@ -45,14 +45,14 @@ struct ChooseProofView: View {
                     .padding(.top, Theme.Spacing.small)
 
                 VStack(spacing: 10) {
-                    ForEach(composition.proofs) { proof in
+                    ForEach(plan.proofs) { proof in
                         SelectableCard(
                             symbol: proof.symbol,
                             title: proof.title,
                             subtitle: proof.subtitle,
-                            isSelected: composition.proofID == proof.id
+                            isSelected: plan.proofID == proof.id
                         ) {
-                            composition.proofID = proof.id
+                            plan.proofID = proof.id
                         }
                     }
                 }
@@ -62,7 +62,7 @@ struct ChooseProofView: View {
 
                 PrimaryButton(
                     title: "Continuer",
-                    isEnabled: composition.selectedProof != nil,
+                    isEnabled: plan.selectedProof != nil,
                     action: onContinue
                 )
                 .accessibilityIdentifier("proof-continue")
@@ -76,6 +76,6 @@ struct ChooseProofView: View {
 }
 
 #Preview {
-    @Previewable @State var composition = GoalComposition(verbIndex: 1)
-    ChooseProofView(composition: $composition, onContinue: {})
+    @Previewable @State var plan = GoalPlan(categoryID: "sport", variantID: "gym")
+    ChooseProofView(plan: $plan, onContinue: {})
 }

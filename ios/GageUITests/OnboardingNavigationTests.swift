@@ -72,6 +72,72 @@ final class OnboardingNavigationTests: XCTestCase {
 
         app.buttons["Nouvel objectif"].tap()
 
+        // 1. La famille, en liste générique.
+        XCTAssertTrue(
+            app.staticTexts["Qu'est-ce que tu veux te forcer à faire ?"].waitForExistence(timeout: 5),
+            "L'écran des familles d'objectif ne s'est pas affiché"
+        )
+        attach(app, name: "03-familles")
+        app.buttons["Faire du sport"].tap()
+
+        // 2. La déclinaison, propre à la famille.
+        XCTAssertTrue(
+            app.staticTexts["Quel sport ?"].waitForExistence(timeout: 5),
+            "Le sous-menu de la famille ne s'est pas affiché"
+        )
+        attach(app, name: "04-declinaisons")
+        app.buttons["La salle"].tap()
+
+        // 3. Le rythme et les jours.
+        XCTAssertTrue(
+            app.staticTexts["Je me promets d'aller à la salle"].waitForExistence(timeout: 5),
+            "L'écran de planification ne s'est pas affiché"
+        )
+        let planContinuer = app.buttons["plan-continue"]
+        XCTAssertFalse(
+            planContinuer.isEnabled,
+            "La suite doit rester fermée tant que les trois jours ne sont pas choisis"
+        )
+        attach(app, name: "05-planification-vide")
+
+        app.buttons["day-1"].tap()
+        app.buttons["day-3"].tap()
+        app.buttons["day-6"].tap()
+        XCTAssertTrue(planContinuer.isEnabled, "Trois jours cochés doivent ouvrir la suite")
+
+        // Le quota est une garde, pas une suggestion : un quatrième jour ne
+        // doit pas entrer alors que la promesse porte sur trois séances.
+        app.buttons["day-2"].tap()
+        XCTAssertFalse(
+            app.buttons["day-2"].isSelected,
+            "Un quatrième jour ne doit pas pouvoir être coché"
+        )
+
+        // L'heure se règle jour par jour, ou se remet au matin même.
+        app.buttons["Je sais l'heure"].firstMatch.tap()
+        attach(app, name: "06-planification")
+
+        planContinuer.tap()
+
+        // 4. La preuve.
+        XCTAssertTrue(
+            app.staticTexts["Que photographies-tu ?"].waitForExistence(timeout: 5),
+            "L'écran de choix de preuve ne s'est pas affiché"
+        )
+        let proofContinuer = app.buttons["proof-continue"]
+        XCTAssertFalse(proofContinuer.isEnabled, "La suite doit rester fermée sans preuve choisie")
+
+        let preuve = app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Photo sur place")
+        ).firstMatch
+        XCTAssertTrue(preuve.exists, "Preuve attendue absente de la liste")
+        preuve.tap()
+        XCTAssertTrue(proofContinuer.isEnabled, "La suite doit s'ouvrir dès qu'une preuve est choisie")
+        attach(app, name: "07-choix-preuve")
+
+        proofContinuer.tap()
+
+        // 5. La mise, une fois la promesse connue.
         XCTAssertTrue(
             app.staticTexts["Combien tu veux miser ?"].waitForExistence(timeout: 5),
             "L'écran de choix de mise ne s'est pas affiché"
@@ -82,63 +148,30 @@ final class OnboardingNavigationTests: XCTestCase {
             NSPredicate(format: "label BEGINSWITH %@", "Continuer avec")
         ).firstMatch
         XCTAssertTrue(mise.exists, "Bouton de confirmation du montant absent")
-        attach(app, name: "03-choix-mise")
+        attach(app, name: "08-choix-mise")
 
         mise.tap()
 
-        // Tant qu'aucun verbe n'est choisi, la phrase reste une invitation et
-        // la suite est fermée.
-        XCTAssertTrue(
-            app.staticTexts["Fais tourner pour composer ton objectif."].waitForExistence(timeout: 5),
-            "L'écran de composition ne s'est pas affiché"
-        )
-        let composeContinuer = app.buttons["compose-continue"]
-        XCTAssertFalse(composeContinuer.isEnabled, "La suite doit rester fermée sans objectif composé")
-        attach(app, name: "04-composition-vide")
-
-        app.buttons["Me lever"].tap()
-
-        XCTAssertTrue(
-            app.staticTexts["Je me promets de me lever à 7 h 00."].waitForExistence(timeout: 5),
-            "La phrase ne s'est pas composée"
-        )
-        XCTAssertTrue(composeContinuer.isEnabled, "La suite doit s'ouvrir dès qu'un objectif est composé")
-        attach(app, name: "05-composition")
-
-        composeContinuer.tap()
-
-        XCTAssertTrue(
-            app.staticTexts["Que photographies-tu ?"].waitForExistence(timeout: 5),
-            "L'écran de choix de preuve ne s'est pas affiché"
-        )
-        let proofContinuer = app.buttons["proof-continue"]
-        XCTAssertFalse(proofContinuer.isEnabled, "La suite doit rester fermée sans preuve choisie")
-
-        let preuve = app.buttons.matching(
-            NSPredicate(format: "label BEGINSWITH %@", "Photo du lit fait")
-        ).firstMatch
-        XCTAssertTrue(preuve.exists, "Preuve attendue absente de la liste")
-        preuve.tap()
-        XCTAssertTrue(proofContinuer.isEnabled, "La suite doit s'ouvrir dès qu'une preuve est choisie")
-        attach(app, name: "06-choix-preuve")
-
-        proofContinuer.tap()
-
+        // 6. L'engagement.
         XCTAssertTrue(
             app.staticTexts["LA CONSIGNE"].waitForExistence(timeout: 5),
             "L'écran d'engagement ne s'est pas affiché"
         )
         XCTAssertTrue(
-            app.staticTexts["Photo du lit fait requise"].exists,
+            app.staticTexts["Je me promets d'aller à la salle 3 fois par semaine."].exists,
+            "La promesse n'est pas rappelée à l'engagement"
+        )
+        XCTAssertTrue(
+            app.staticTexts["Photo sur place requise"].exists,
             "La preuve choisie n'est pas rappelée à l'engagement"
         )
-        attach(app, name: "07-engagement")
+        attach(app, name: "09-engagement")
 
-        // Le retour ramène à l'étape précédente, preuve conservée.
+        // Le retour ramène à l'étape précédente, mise conservée.
         app.buttons["Retour"].tap()
         XCTAssertTrue(
-            app.staticTexts["Que photographies-tu ?"].waitForExistence(timeout: 5),
-            "Le bouton retour n'a pas ramené au choix de la preuve"
+            app.staticTexts["Combien tu veux miser ?"].waitForExistence(timeout: 5),
+            "Le bouton retour n'a pas ramené au choix de la mise"
         )
     }
 
@@ -159,7 +192,7 @@ final class OnboardingNavigationTests: XCTestCase {
             app.buttons["Glisse pour t'engager"].waitForExistence(timeout: 5),
             "La signature n'a pas déverrouillé le curseur d'engagement"
         )
-        attach(app, name: "08-engagement-signe")
+        attach(app, name: "10-engagement-signe")
     }
 
     /// Une fois l'engagement signé, le parcours se referme et rend la main à
@@ -183,7 +216,7 @@ final class OnboardingNavigationTests: XCTestCase {
             app.staticTexts["Tu t'es engagé."].waitForExistence(timeout: 5),
             "La confirmation d'engagement ne s'est pas affichée"
         )
-        attach(app, name: "09-confirmation")
+        attach(app, name: "11-confirmation")
 
         app.buttons["Terminer"].tap()
 
@@ -209,7 +242,7 @@ final class OnboardingNavigationTests: XCTestCase {
             app.otherElements["Régularité des douze dernières semaines"].exists,
             "La grille de régularité n'est pas exposée"
         )
-        attach(app, name: "10-regularite")
+        attach(app, name: "12-regularite")
 
         app.buttons["Profil et réglages"].tap()
         XCTAssertTrue(
@@ -220,12 +253,47 @@ final class OnboardingNavigationTests: XCTestCase {
             app.staticTexts["Se déconnecter"].exists,
             "La déconnexion doit être accessible depuis le profil"
         )
-        attach(app, name: "11-profil")
+        attach(app, name: "13-profil")
 
         app.buttons["Fermer"].tap()
         XCTAssertTrue(
             app.staticTexts["Ta régularité"].waitForExistence(timeout: 5),
             "La fermeture du profil n'a pas ramené à l'accueil"
+        )
+    }
+
+    /// Un defi s'ouvre sur sa fiche : la promesse de la semaine, ses seances,
+    /// ce qui est en jeu.
+    func testUnDefiSouvreSurSaFiche() {
+        let app = launchSignedIn()
+
+        let defi = app.buttons.matching(
+            NSPredicate(format: "label CONTAINS %@", "fois cette semaine")
+        ).firstMatch
+        XCTAssertTrue(defi.waitForExistence(timeout: 10), "Aucun défi hebdomadaire sur l'accueil")
+        attach(app, name: "14-accueil-defis-hebdo")
+
+        defi.tap()
+
+        XCTAssertTrue(
+            app.staticTexts["Ton défi"].waitForExistence(timeout: 5),
+            "La fiche du défi ne s'est pas ouverte"
+        )
+        // Les titres de section s'affichent en capitales.
+        XCTAssertTrue(
+            app.staticTexts["TES SÉANCES"].exists,
+            "La fiche doit lister les séances de la semaine"
+        )
+        XCTAssertTrue(
+            app.staticTexts["CE QUE TU RISQUES"].exists,
+            "La fiche doit dire ce qui est en jeu"
+        )
+        attach(app, name: "15-fiche-defi")
+
+        app.buttons["Fermer"].tap()
+        XCTAssertTrue(
+            app.staticTexts["Tes défis"].waitForExistence(timeout: 5),
+            "La fermeture de la fiche n'a pas ramené à l'accueil"
         )
     }
 
@@ -256,26 +324,33 @@ final class OnboardingNavigationTests: XCTestCase {
         XCTAssertTrue(nouvel.waitForExistence(timeout: 10), "Accueil absent", file: file, line: line)
         nouvel.tap()
 
+        let famille = app.buttons["Faire du sport"]
+        XCTAssertTrue(famille.waitForExistence(timeout: 5), "Écran des familles absent", file: file, line: line)
+        famille.tap()
+
+        let declinaison = app.buttons["La salle"]
+        XCTAssertTrue(declinaison.waitForExistence(timeout: 5), "Sous-menu absent", file: file, line: line)
+        declinaison.tap()
+
+        let planContinuer = app.buttons["plan-continue"]
+        XCTAssertTrue(planContinuer.waitForExistence(timeout: 5), "Écran de planification absent", file: file, line: line)
+        app.buttons["day-1"].tap()
+        app.buttons["day-3"].tap()
+        app.buttons["day-6"].tap()
+        planContinuer.tap()
+
+        let preuve = app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Photo sur place")
+        ).firstMatch
+        XCTAssertTrue(preuve.waitForExistence(timeout: 5), "Écran de preuve absent", file: file, line: line)
+        preuve.tap()
+        app.buttons["proof-continue"].tap()
+
         let mise = app.buttons.matching(
             NSPredicate(format: "label BEGINSWITH %@", "Continuer avec")
         ).firstMatch
         XCTAssertTrue(mise.waitForExistence(timeout: 5), "Écran de mise absent", file: file, line: line)
         mise.tap()
-
-        let verbe = app.buttons["Me lever"]
-        XCTAssertTrue(verbe.waitForExistence(timeout: 5), "Écran de composition absent", file: file, line: line)
-        verbe.tap()
-
-        let composeContinuer = app.buttons["compose-continue"]
-        XCTAssertTrue(composeContinuer.waitForExistence(timeout: 5), "Suite du parcours absente", file: file, line: line)
-        composeContinuer.tap()
-
-        let preuve = app.buttons.matching(
-            NSPredicate(format: "label BEGINSWITH %@", "Photo du lit fait")
-        ).firstMatch
-        XCTAssertTrue(preuve.waitForExistence(timeout: 5), "Écran de preuve absent", file: file, line: line)
-        preuve.tap()
-        app.buttons["proof-continue"].tap()
 
         XCTAssertTrue(
             app.staticTexts["LA CONSIGNE"].waitForExistence(timeout: 5),

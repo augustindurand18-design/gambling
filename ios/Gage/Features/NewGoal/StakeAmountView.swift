@@ -1,10 +1,14 @@
 import SwiftUI
 
-/// Etape 1 de l'onboarding : choix du montant mis en jeu.
+/// Choix du montant mis en jeu, une fois l'objectif et sa preuve definis.
+///
+/// La mise couvre la semaine entiere : une seule somme, quel que soit le
+/// nombre de seances promises. Une mise par seance multiplierait l'exposition
+/// sans que l'utilisateur l'ait lue quelque part.
 ///
 /// Cet ecran ne prend aucun engagement — il ne fait que preparer un montant.
-/// Le consentement au debit est donne plus tard, ecran dedie, sur un objectif
-/// precis et avec ses conditions affichees.
+/// Le consentement au debit est donne a l'ecran suivant, avec ses conditions
+/// affichees et une signature.
 struct StakeAmountView: View {
     @Binding var amountCents: Int
     /// Plafond par objectif accepte par l'utilisateur ; borne la roue.
@@ -18,7 +22,7 @@ struct StakeAmountView: View {
             VStack(alignment: .leading, spacing: 0) {
                 StepHeader(
                     count: NewGoalStep.total,
-                    index: NewGoalStep.stakeAmount.index,
+                    index: NewGoalStep.stake.index,
                     onBack: { dismiss() }
                 )
 
@@ -27,7 +31,7 @@ struct StakeAmountView: View {
                     .foregroundStyle(Theme.Colors.ink)
                     .padding(.top, Theme.Spacing.large)
 
-                Text("Si tu ne réussis pas ton objectif, ce montant sera retiré de ton compte.")
+                Text("Si tu ne tiens pas ta semaine, ce montant sera retiré de ton compte.")
                     .font(Theme.Fonts.body)
                     .foregroundStyle(Theme.Colors.inkMuted)
                     .lineSpacing(5)

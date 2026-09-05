@@ -22,8 +22,10 @@ struct CommitmentView: View {
 
     @State private var strokes: [[CGPoint]] = []
     @State private var signedAt: Date?
+    @State private var isSaving = false
+    @State private var errorMessage: String?
 
-    private var composition: GoalComposition { draft.composition }
+    private var plan: GoalPlan { draft.plan }
     private var stakeAmountCents: Int { draft.stakeAmountCents }
     private var isSigned: Bool { !strokes.isEmpty }
 
@@ -42,13 +44,14 @@ struct CommitmentView: View {
                     .foregroundStyle(Theme.Colors.inkMuted)
                     .padding(.top, Theme.Spacing.medium + 8)
 
-                Text(composition.sentence)
+                Text(plan.sentence)
                     .font(Theme.Fonts.sentence)
                     .foregroundStyle(Theme.Colors.ink)
                     .lineSpacing(3)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, Theme.Spacing.small + 4)
 
+                scheduleRow
                 proofRow
                 stakeRow
 
@@ -66,11 +69,19 @@ struct CommitmentView: View {
                 Spacer(minLength: Theme.Spacing.medium)
 
                 SlideToConfirm(
-                    title: "Glisse pour t'engager",
+                    title: isSaving ? "Enregistrement…" : "Glisse pour t'engager",
                     disabledTitle: "Signe pour débloquer",
-                    isEnabled: isSigned,
+                    isEnabled: isSigned && !isSaving,
                     onConfirm: commit
                 )
+
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(Theme.Fonts.cardSubtitle)
+                        .foregroundStyle(Theme.Colors.failed)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, Theme.Spacing.small)
+                }
             }
             .padding(.horizontal, Theme.Spacing.screenHorizontal)
             .padding(.top, Theme.Spacing.screenTop)
@@ -89,7 +100,7 @@ struct CommitmentView: View {
                 .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(Theme.Colors.inkMuted)
 
-            Text(composition.selectedProof.map { "\($0.title) requise" } ?? "Preuve photo requise")
+            Text(plan.selectedProof.map { "\($0.title) requise" } ?? "Preuve photo requise")
                 .font(Theme.Fonts.body)
                 .foregroundStyle(Theme.Colors.inkMuted)
                 .fixedSize(horizontal: false, vertical: true)
@@ -102,9 +113,31 @@ struct CommitmentView: View {
         .padding(.top, Theme.Spacing.medium)
     }
 
+    /// Les jours et leurs heures, relus avant la signature : c'est sur eux
+    /// que porte l'engagement, pas seulement sur la phrase.
+    private var scheduleRow: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "calendar")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(Theme.Colors.inkMuted)
+
+            Text(plan.scheduleText)
+                .font(Theme.Fonts.body)
+                .foregroundStyle(Theme.Colors.inkMuted)
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, Theme.Spacing.medium)
+        .overlay(alignment: .top) {
+            Divider().overlay(Theme.Colors.divider)
+        }
+        .padding(.top, Theme.Spacing.medium)
+    }
+
     private var stakeRow: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text("La mise")
+            Text("La mise, pour la semaine")
                 .font(Theme.Fonts.body)
                 .foregroundStyle(Theme.Colors.inkMuted)
 
@@ -158,9 +191,41 @@ struct CommitmentView: View {
         return "\(amount) engagés · signature enregistrée à \(Self.timeFormatter.string(from: signedAt))."
     }
 
+    /// Enregistre l'objectif sur le compte connecte, puis confirme.
+    ///
+    /// La confirmation n'apparait qu'apres l'ecriture : afficher « tu t'es
+    /// engage » sur un enregistrement qui a echoue ferait croire a quelqu'un
+    /// qu'il a un objectif en cours alors qu'il n'en a aucun.
     private func commit() {
+        guard !isSaving else { return }
+        isSaving = true
+        errorMessage = nil
+
+        Task { @MainActor in
+            #if DEBUG
+            // Un test d'interface tourne sur une session factice : aucune
+            // requete ne passerait la RLS.
+            if SessionStore.isUITesting {
+                finish()
+                return
+            }
+            #endif
+
+            do {
+                try await GoalsAPI.shared.createGoals(plan: plan)
+                finish()
+            } catch {
+                isSaving = false
+                errorMessage = (error as? AppError)?.errorDescription
+                    ?? "Impossible d'enregistrer ton objectif."
+            }
+        }
+    }
+
+    private func finish() {
+        isSaving = false
         withAnimation(.easeOut(duration: 0.25)) { signedAt = .now }
-        Log.app.debug("Engagement signé : \(composition.shortTitle, privacy: .public)")
+        Log.app.debug("Objectif enregistré : \(plan.shortTitle, privacy: .public)")
     }
 
     private static let timeFormatter: DateFormatter = {
@@ -173,7 +238,14 @@ struct CommitmentView: View {
 
 #Preview {
     @Previewable @State var draft = GoalDraft(
-        composition: GoalComposition(verbIndex: 1, proofID: "bed")
+        plan: GoalPlan(
+            categoryID: "sport",
+            variantID: "gym",
+            days: [.monday, .wednesday, .saturday],
+            times: [.monday: .fixed(hour: 18, minute: 30), .wednesday: .onTheDay,
+                    .saturday: .fixed(hour: 10, minute: 0)],
+            proofID: "onsite"
+        )
     )
     CommitmentView(draft: $draft, onCommitted: {})
 }

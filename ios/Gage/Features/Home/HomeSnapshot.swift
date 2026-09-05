@@ -43,27 +43,39 @@ extension HomeSnapshot {
             challenges: [
                 ChallengeSummary(
                     id: UUID(),
-                    title: "Je me promets de me lever à 7 h 00.",
+                    title: "Me lever 3 fois cette semaine",
                     proofTitle: "Photo du lit fait",
                     state: .proofWindowOpen,
                     stakeCents: 2_500,
-                    deadline: .now.addingTimeInterval(2_700)
+                    deadline: .now.addingTimeInterval(2_700),
+                    sessions: [
+                        ChallengeSession(id: UUID(), date: today, state: .proofWindowOpen, timeText: "7 h 00"),
+                        ChallengeSession(id: UUID(), date: today.addingTimeInterval(86_400), state: .committed, timeText: "7 h 00"),
+                        ChallengeSession(id: UUID(), date: today.addingTimeInterval(172_800), state: .committed, timeText: "7 h 00")
+                    ]
                 ),
                 ChallengeSummary(
                     id: UUID(),
-                    title: "Je me promets d'aller à la salle à 18 h 30.",
+                    title: "Aller à la salle 2 fois cette semaine",
                     proofTitle: "Photo sur place",
                     state: .committed,
                     stakeCents: 1_500,
-                    deadline: .now.addingTimeInterval(39_600)
+                    deadline: .now.addingTimeInterval(39_600),
+                    sessions: [
+                        ChallengeSession(id: UUID(), date: today.addingTimeInterval(86_400), state: .committed, timeText: "18 h 30"),
+                        ChallengeSession(id: UUID(), date: today.addingTimeInterval(259_200), state: .committed, timeText: nil)
+                    ]
                 ),
                 ChallengeSummary(
                     id: UUID(),
-                    title: "Je me promets de faire mon bureau à 20 h 00.",
+                    title: "Ranger mon bureau 1 fois cette semaine",
                     proofTitle: "Photo du plan de travail",
                     state: .aiVerifying,
                     stakeCents: 1_000,
-                    deadline: nil
+                    deadline: nil,
+                    sessions: [
+                        ChallengeSession(id: UUID(), date: today, state: .aiVerifying, timeText: "20 h 00")
+                    ]
                 )
             ],
             calendar: ConsistencyCalendar.build(outcomes: outcomes, reference: .now, calendar: calendar),
