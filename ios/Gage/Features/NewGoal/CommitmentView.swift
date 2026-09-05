@@ -33,8 +33,8 @@ struct CommitmentView: View {
         ScreenBackground(glow: .topTrailing) {
             VStack(alignment: .leading, spacing: 0) {
                 StepHeader(
-                    count: NewGoalStep.total,
-                    index: NewGoalStep.commitment.index,
+                    count: NewGoalStep.total(skippingVariant: plan.skipsVariantStep),
+                    index: NewGoalStep.commitment.index(skippingVariant: plan.skipsVariantStep),
                     onBack: { dismiss() }
                 )
 

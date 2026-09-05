@@ -34,6 +34,12 @@ struct GoalPlan: Equatable, Sendable {
 
     var proofs: [ProofOption] { variant?.proofs ?? [] }
 
+    /// Le parcours saute l'ecran de declinaison quand la famille n'en propose
+    /// qu'une : elle est retenue d'office par `selectCategory`. Se lit sur le
+    /// plan et non sur une valeur passee aux ecrans — une copie resterait
+    /// figee sur l'etat d'avant le choix de la famille.
+    var skipsVariantStep: Bool { variants.count == 1 }
+
     var selectedProof: ProofOption? {
         guard let proofID else { return nil }
         return proofs.first { $0.id == proofID }
@@ -42,7 +48,17 @@ struct GoalPlan: Equatable, Sendable {
     /// Jours retenus, dans l'ordre de la semaine.
     var selectedDays: [Weekday] { days.sorted() }
 
-    func time(for day: Weekday) -> DayTime { times[day] ?? .onTheDay }
+    /// L'heure doit-elle etre arretee des maintenant ? Un reveil ne peut pas
+    /// se renseigner le matin meme : l'heure y est la promesse.
+    var requiresFixedTime: Bool { category?.requiresFixedTime ?? false }
+
+    /// Moment retenu par defaut a l'ajout d'un jour : « le matin meme », sauf
+    /// quand l'objectif exige une heure ferme.
+    var defaultDayTime: DayTime {
+        requiresFixedTime ? .fixed(hour: GoalCatalogue.defaultHour, minute: 0) : .onTheDay
+    }
+
+    func time(for day: Weekday) -> DayTime { times[day] ?? defaultDayTime }
 
     /// « 3 fois cette semaine ».
     var frequencyText: String { "\(timesPerWeek) fois cette semaine" }
@@ -109,11 +125,14 @@ struct GoalPlan: Equatable, Sendable {
 
     // MARK: - Ecriture
 
+    /// Une famille qui n'a qu'une declinaison la retient d'office : le parcours
+    /// saute alors l'ecran de declinaison, qui n'offrirait aucun choix.
     mutating func selectCategory(_ id: String) {
         guard id != categoryID else { return }
         categoryID = id
         variantID = nil
         proofID = nil
+        if variants.count == 1 { variantID = variants[0].id }
     }
 
     mutating func selectVariant(_ id: String) {
@@ -124,11 +143,20 @@ struct GoalPlan: Equatable, Sendable {
 
     /// Baisser le rythme retire les derniers jours de la semaine plutot que
     /// de laisser un plan qui promet moins de seances qu'il n'en programme.
+    ///
+    /// Promettre autant de seances qu'il y a de jours ne laisse rien a
+    /// choisir : la semaine se coche alors d'elle-meme, plutot que d'exiger
+    /// sept gestes dont aucun n'est une decision.
     mutating func setTimesPerWeek(_ count: Int) {
         timesPerWeek = count
         while days.count > count, let last = days.max() {
             days.remove(last)
             times[last] = nil
+        }
+        guard count == Weekday.allCases.count else { return }
+        for day in Weekday.allCases where !days.contains(day) {
+            days.insert(day)
+            times[day] = defaultDayTime
         }
     }
 
@@ -138,12 +166,16 @@ struct GoalPlan: Equatable, Sendable {
             times[day] = nil
         } else if canSelectMoreDays {
             days.insert(day)
-            times[day] = .onTheDay
+            times[day] = defaultDayTime
         }
     }
 
+    /// « Le matin meme » est refuse quand l'objectif exige une heure ferme :
+    /// la garde est ici et pas seulement dans l'ecran, pour qu'aucun chemin ne
+    /// puisse enregistrer un reveil sans heure.
     mutating func setTime(_ time: DayTime, for day: Weekday) {
         guard days.contains(day) else { return }
+        guard time.isFixed || !requiresFixedTime else { return }
         times[day] = time
     }
 }

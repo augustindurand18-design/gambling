@@ -210,6 +210,15 @@ revue humaine, jamais échec direct (invariant §2).
    pas) ne devrait pas pouvoir porter la mise maximale tant que la vérif n'est
    pas éprouvée.
 
+7. **Quand l'heure est l'objectif, elle se fixe à la création.** La plupart des
+   objectifs tolèrent « je donnerai l'heure le jour même » : on promet d'aller à
+   la salle, pas d'y aller à 18 h. Un réveil, non — l'heure *est* la promesse, et
+   la renseigner le matin reviendrait à la choisir une fois levé, c'est-à-dire à
+   ne rien promettre. La famille « Me réveiller » porte donc
+   `requiresFixedTime`, qui retire l'option « le matin même » et impose la roue
+   horaire. La garde est aussi dans le domaine (`GoalPlan.setTime`), pas
+   seulement à l'écran.
+
 ---
 
 ## 5. Récapitulatif périmètre bêta
@@ -246,3 +255,76 @@ revue humaine, jamais échec direct (invariant §2).
       de confiance IA.
 - [ ] Prompt `verify-proof` : intégrer le descriptif de preuve comme critère
       et la comparaison aux preuves précédentes (doublon visuel).
+
+---
+
+## 7. Audit du catalogue in-app — 2026-09-05
+
+Le catalogue embarqué (`ios/Gage/Domain/GoalCatalogue.swift`) proposait
+mécaniquement **3 preuves pour chacune de ses 14 déclinaisons, soit 42**. Le
+quota était l'erreur : pour tenir trois options partout, il fallait inventer des
+preuves qui n'en sont pas. Après audit, **42 → 19 preuves et 14 → 12
+déclinaisons**.
+
+### Les cinq critères
+
+1. **Probante** — la photo atteste l'action accomplie ou son résultat, jamais du
+   matériel, une préparation ou un décor. Un sac prêt, des chaussures aux pieds,
+   un vélo sorti précèdent l'effort et ne l'attestent pas.
+2. **Sans visage** — aucune preuve ne repose sur le fait de se photographier.
+   C'est la donnée la plus sensible qu'on puisse réclamer tous les jours (§RGPD
+   de `CLAUDE.md`), et aucun objectif ne doit en dépendre.
+3. **Une seule preuve quand le lieu est l'objectif** (§2.1) — la photo sur place
+   ferme la question. Plusieurs options ne se justifient que si le lieu prend des
+   formes différentes selon les gens : « aller au travail » est la seule
+   exception, un lieu de travail pouvant être un bureau, une entrée d'immeuble
+   ou un atelier.
+4. **Tranchable** — le modèle vision décide sans ambiguïté. « Confirme que rien
+   ne traîne » est un jugement, pas un constat (règle §4.5).
+5. **Non redondante** — pas deux cadrages de la même scène dans une même
+   déclinaison, pas de doublon avec une autre déclinaison de la même famille.
+
+### Preuves retirées
+
+| Déclinaison | Preuve retirée | Motif |
+|---|---|---|
+| Me lever | `selfie` Selfie du matin | Visage |
+| Me lever | `street` Photo de la rue | Doublon d'`outside` |
+| Me lever et petit-déjeuner | `kitchen` Photo de la cuisine | Décor : une cuisine ne prouve aucun repas |
+| Me lever et petit-déjeuner | `selfie` Selfie à table | Visage |
+| Me lever et sortir | `shoes` Chaussures aux pieds | Matériel |
+| Me lever et sortir | `selfie` Selfie dehors | Visage |
+| La salle | `machine` Photo de la machine | Doublon du lieu |
+| La salle | `bag` Photo du sac ouvert | Matériel |
+| Le foot | `boots` Crampons aux pieds | Matériel |
+| La course | `shoes` Chaussures aux pieds | Matériel |
+| La piscine | `gear` Bonnet et lunettes | Matériel |
+| Le vélo | `bike` Photo du vélo sorti | Matériel — « prête » désigne l'avant-effort |
+| Foot, course, piscine, vélo | `selfie` (×4) | Visage |
+| Mon lit | `pillows` Oreillers en place | Redondant avec `made` |
+| Mon bureau | `tidy` Affaires rangées | Redondant, et « rien ne traîne » est indécidable |
+| Le ménage | `bins` Poubelles sorties | Hors sujet : sortir les poubelles n'est pas le ménage |
+| Aller au travail | `badge` Badge en main | Matériel : un badge se photographie n'importe où |
+| Mes devoirs | `closed` Cahier fermé | N'atteste aucun travail |
+| Mes devoirs, Réviser | `selfie` (×2) | Visage |
+| Réviser | `desk` Bureau en séance | Décor, redondant avec les fiches |
+
+### Deux conséquences de structure
+
+**La famille « Me réveiller » fusionne en un seul objectif.** Ses trois
+déclinaisons — « juste me lever », « me lever et petit-déjeuner », « me lever et
+sortir » — n'étaient pas trois promesses mais une seule, « me lever », avec trois
+façons de la prouver : lit fait, petit-déjeuner, extérieur. Une famille qui n'a
+qu'une déclinaison la retient d'office et son écran de choix est sauté
+(`GoalPlan.selectCategory`).
+
+**Sept déclinaisons sur douze n'ont plus qu'une preuve** (salle, foot, course,
+piscine, vélo, devoirs, réviser). L'écran de preuve reste affiché malgré tout :
+il n'y fait plus choisir mais annonce ce qu'il faudra photographier, ce que la
+doctrine du descriptif de preuve (§3) exige. La preuve unique y est
+pré-sélectionnée.
+
+> **Règle** : le nombre de preuves d'un objectif est **variable**. On n'en invente
+> pas pour tenir un quota — c'est exactement ce qui avait produit « photo de ton
+> sac ouvert ». `GoalPlanTests` n'exige donc qu'**au moins une** preuve par
+> déclinaison, et interdit explicitement le retour des selfies.

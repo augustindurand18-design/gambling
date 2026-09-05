@@ -14,8 +14,8 @@ struct ChooseVariantView: View {
         ScreenBackground(glow: .topTrailing) {
             VStack(alignment: .leading, spacing: 0) {
                 StepHeader(
-                    count: NewGoalStep.total,
-                    index: NewGoalStep.variant.index,
+                    count: NewGoalStep.total(skippingVariant: false),
+                    index: NewGoalStep.variant.index(skippingVariant: false),
                     onBack: { dismiss() }
                 )
 

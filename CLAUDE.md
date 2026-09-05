@@ -161,6 +161,13 @@ _(date + décision + raison)_
 - 2026-09-02 : objectifs limités au **strictement vérifiable** (photo, géofence, Screen Time, exports d'apps).
 - 2026-09-02 : **app 100 % native, tout in-app, commission Apple acceptée. Abo = IAP StoreKit 2 (15 % SBP). Mises = Stripe. Paddle abandonné. Cible = France.**
 - 2026-09-02 : prix variable 25 €→5 € géré via **2 produits StoreKit dans un même groupe d'abonnement** (bascule au renouvellement) + offres promo. Revoir la voie DMA UE seulement si trop rigide.
+- 2026-09-05 : **audit des preuves du catalogue** (42 → 19). Retrait de toutes
+  les preuves de « matériel » et de « décor » — un sac, des chaussures, un badge
+  se photographient sans avoir fait l'objectif — et de **tous les selfies**. Un
+  objectif de lieu se prouve par une seule photo sur place. La famille « Me
+  réveiller » fusionne en un objectif unique : ses déclinaisons n'étaient que
+  des façons de prouver la même promesse. Nombre de preuves désormais variable,
+  jamais un quota. → `docs/objectifs-verification.md` §7.
 - 2026-09-03 : **plafond par objectif porté de 30 € à 100 €** (roue de mise de 5 € à 100 €, pas de 5 €). S'applique aux nouveaux profils uniquement — migration `0019`. Le plafond mensuel reste à 150 €, à revoir : il n'autorise plus qu'une mise maximale par mois.
 
 ## Stack pressentie (en cours de décision — 2026-09-02)

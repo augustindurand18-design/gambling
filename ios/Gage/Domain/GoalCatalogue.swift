@@ -47,7 +47,25 @@ struct GoalCategory: Identifiable, Hashable, Sendable {
     let title: String
     /// Question posee en tete du sous-menu.
     let question: String
+    /// L'heure doit etre fixee des la creation, sans possibilite de la donner
+    /// le jour meme. C'est le cas d'un reveil : l'heure y est l'objectif, la
+    /// renseigner le matin reviendrait a la choisir une fois leve.
+    let requiresFixedTime: Bool
     let variants: [GoalVariant]
+
+    init(
+        id: String,
+        title: String,
+        question: String,
+        requiresFixedTime: Bool = false,
+        variants: [GoalVariant]
+    ) {
+        self.id = id
+        self.title = title
+        self.question = question
+        self.requiresFixedTime = requiresFixedTime
+        self.variants = variants
+    }
 }
 
 /// Jour de la semaine, lundi en premier comme dans un calendrier francais.
@@ -147,92 +165,58 @@ enum GoalCatalogue {
     static let frequencies: [Int] = Array(1...7)
 
     static let categories: [GoalCategory] = [
-        GoalCategory(id: "wake-up", title: "Me réveiller", question: "Tu te lèves pour quoi ?", variants: [
-            GoalVariant(id: "plain", title: "Juste me lever", promise: "de me lever", proofs: [
-                ProofOption(id: "selfie", title: "Selfie du matin",
-                            subtitle: "Ton visage, à l'heure dite", symbol: "face.smiling"),
+        // Une seule declinaison : se lever est la promesse, le reste n'etait
+        // qu'une facon de la prouver. L'ecran de declinaison est saute.
+        GoalCategory(id: "wake-up", title: "Me réveiller", question: "Tu te lèves pour quoi ?",
+                     requiresFixedTime: true, variants: [
+            GoalVariant(id: "plain", title: "Me lever", promise: "de me lever", proofs: [
                 ProofOption(id: "bed", title: "Photo du lit fait",
                             subtitle: "Prouve que tu as quitté le lit", symbol: "bed.double"),
-                ProofOption(id: "outside", title: "Photo de l'extérieur",
-                            subtitle: "Prouve que tu es sorti de chez toi", symbol: "mappin.and.ellipse")
-            ]),
-            GoalVariant(id: "breakfast", title: "Me lever et petit-déjeuner",
-                        promise: "de me lever et de prendre un petit-déjeuner", proofs: [
                 ProofOption(id: "table", title: "Photo du petit-déjeuner",
                             subtitle: "Montre le repas servi", symbol: "fork.knife"),
-                ProofOption(id: "kitchen", title: "Photo de la cuisine",
-                            subtitle: "Situe le repas chez toi", symbol: "photo"),
-                ProofOption(id: "selfie", title: "Selfie à table",
-                            subtitle: "Ton visage, devant l'assiette", symbol: "face.smiling")
-            ]),
-            GoalVariant(id: "out", title: "Me lever et sortir",
-                        promise: "de me lever et de sortir de chez moi", proofs: [
-                ProofOption(id: "street", title: "Photo de la rue",
-                            subtitle: "Prouve que tu es dehors", symbol: "mappin.and.ellipse"),
-                ProofOption(id: "shoes", title: "Photo de tes chaussures aux pieds",
-                            subtitle: "Montre que tu es habillé", symbol: "bag"),
-                ProofOption(id: "selfie", title: "Selfie dehors",
-                            subtitle: "Ton visage, à l'air libre", symbol: "face.smiling")
+                ProofOption(id: "outside", title: "Photo de l'extérieur",
+                            subtitle: "Dehors ou à la fenêtre : la lumière du jour se voit",
+                            symbol: "mappin.and.ellipse")
             ])
         ]),
 
+        // Le lieu est l'objectif : la photo sur place tranche seule, rien ne
+        // s'y ajoute utilement.
         GoalCategory(id: "sport", title: "Faire du sport", question: "Quel sport ?", variants: [
             GoalVariant(id: "gym", title: "La salle", promise: "d'aller à la salle", proofs: [
                 ProofOption(id: "onsite", title: "Photo sur place",
-                            subtitle: "Confirme que tu es bien à la salle", symbol: "mappin.and.ellipse"),
-                ProofOption(id: "machine", title: "Photo de la machine utilisée",
-                            subtitle: "Prouve que la séance a eu lieu", symbol: "photo"),
-                ProofOption(id: "bag", title: "Photo de ton sac ouvert",
-                            subtitle: "Montre que tu as pris ta tenue", symbol: "bag")
+                            subtitle: "Confirme que tu es bien à la salle", symbol: "mappin.and.ellipse")
             ]),
             GoalVariant(id: "football", title: "Le foot", promise: "d'aller au foot", proofs: [
                 ProofOption(id: "pitch", title: "Photo du terrain",
-                            subtitle: "Situe le match ou l'entraînement", symbol: "mappin.and.ellipse"),
-                ProofOption(id: "boots", title: "Photo de tes crampons aux pieds",
-                            subtitle: "Montre que tu es en tenue", symbol: "bag"),
-                ProofOption(id: "selfie", title: "Selfie après le match",
-                            subtitle: "Ton visage, au coup de sifflet final", symbol: "face.smiling")
+                            subtitle: "Situe le match ou l'entraînement", symbol: "mappin.and.ellipse")
             ]),
             GoalVariant(id: "run", title: "La course", promise: "d'aller courir", proofs: [
                 ProofOption(id: "route", title: "Photo de ton parcours",
-                            subtitle: "Situe la course en extérieur", symbol: "mappin.and.ellipse"),
-                ProofOption(id: "shoes", title: "Photo de tes chaussures aux pieds",
-                            subtitle: "Montre que tu es en tenue", symbol: "bag"),
-                ProofOption(id: "selfie", title: "Selfie après l'effort",
-                            subtitle: "Ton visage, à l'arrivée", symbol: "face.smiling")
+                            subtitle: "Situe la course en extérieur", symbol: "mappin.and.ellipse")
             ]),
             GoalVariant(id: "pool", title: "La piscine", promise: "d'aller à la piscine", proofs: [
                 ProofOption(id: "basin", title: "Photo du bassin",
-                            subtitle: "Confirme que tu es sur place", symbol: "mappin.and.ellipse"),
-                ProofOption(id: "gear", title: "Photo du bonnet et des lunettes",
-                            subtitle: "Montre que tu es équipé", symbol: "bag"),
-                ProofOption(id: "selfie", title: "Selfie cheveux mouillés",
-                            subtitle: "Prouve que tu es entré dans l'eau", symbol: "face.smiling")
+                            subtitle: "Confirme que tu es sur place", symbol: "mappin.and.ellipse")
             ]),
             GoalVariant(id: "bike", title: "Le vélo", promise: "de faire du vélo", proofs: [
-                ProofOption(id: "bike", title: "Photo du vélo sorti",
-                            subtitle: "Montre la machine prête ou revenue", symbol: "photo"),
                 ProofOption(id: "road", title: "Photo de la route",
-                            subtitle: "Situe la sortie en extérieur", symbol: "mappin.and.ellipse"),
-                ProofOption(id: "selfie", title: "Selfie casque sur la tête",
-                            subtitle: "Ton visage, en tenue", symbol: "face.smiling")
+                            subtitle: "Situe la sortie en extérieur", symbol: "mappin.and.ellipse")
             ])
         ]),
 
+        // Ici c'est le resultat qui compte, pas le lieu : deux cadrages
+        // complementaires se justifient.
         GoalCategory(id: "tidy", title: "Ranger chez moi", question: "Tu ranges quoi ?", variants: [
             GoalVariant(id: "bed", title: "Mon lit", promise: "de faire mon lit", proofs: [
                 ProofOption(id: "made", title: "Photo du lit fait",
                             subtitle: "Montre le résultat, draps tirés", symbol: "bed.double"),
                 ProofOption(id: "room", title: "Photo de la chambre entière",
-                            subtitle: "Situe le lit dans la pièce", symbol: "photo"),
-                ProofOption(id: "pillows", title: "Photo des oreillers en place",
-                            subtitle: "Confirme le détail fini", symbol: "bag")
+                            subtitle: "Situe le lit dans la pièce", symbol: "photo")
             ]),
             GoalVariant(id: "desk", title: "Mon bureau", promise: "de ranger mon bureau", proofs: [
                 ProofOption(id: "surface", title: "Photo du plan de travail",
                             subtitle: "Montre la surface dégagée", symbol: "photo"),
-                ProofOption(id: "tidy", title: "Photo des affaires rangées",
-                            subtitle: "Confirme que rien ne traîne", symbol: "bag"),
                 ProofOption(id: "doorway", title: "Photo de la pièce depuis la porte",
                             subtitle: "Situe le bureau rangé", symbol: "mappin.and.ellipse")
             ]),
@@ -240,36 +224,29 @@ enum GoalCatalogue {
                 ProofOption(id: "room", title: "Photo de la pièce rangée",
                             subtitle: "Montre le résultat d'ensemble", symbol: "photo"),
                 ProofOption(id: "floor", title: "Photo du sol et de l'aspirateur",
-                            subtitle: "Confirme le passage effectué", symbol: "bag"),
-                ProofOption(id: "bins", title: "Photo des poubelles sorties",
-                            subtitle: "Prouve la dernière étape", symbol: "mappin.and.ellipse")
+                            subtitle: "Confirme le passage effectué", symbol: "bag")
             ])
         ]),
 
         GoalCategory(id: "work", title: "M'y mettre", question: "T'y mettre à quoi ?", variants: [
+            // Seul objectif de lieu a garder plusieurs preuves : un lieu de
+            // travail n'a pas une forme unique.
             GoalVariant(id: "office", title: "Aller au travail", promise: "d'aller au travail", proofs: [
                 ProofOption(id: "desk", title: "Photo de ton poste",
                             subtitle: "Prouve que tu es installé", symbol: "photo"),
                 ProofOption(id: "entrance", title: "Photo de l'entrée du bâtiment",
                             subtitle: "Situe ton arrivée sur place", symbol: "mappin.and.ellipse"),
-                ProofOption(id: "badge", title: "Photo de ton badge en main",
-                            subtitle: "Montre l'accès validé", symbol: "bag")
+                ProofOption(id: "workshop", title: "Photo de ton atelier",
+                            subtitle: "Prouve que tu es à ton poste, atelier ou chantier",
+                            symbol: "wrench.and.screwdriver")
             ]),
             GoalVariant(id: "homework", title: "Mes devoirs", promise: "de faire mes devoirs", proofs: [
                 ProofOption(id: "pages", title: "Photo du travail terminé",
-                            subtitle: "Montre les pages remplies", symbol: "photo"),
-                ProofOption(id: "closed", title: "Photo du cahier fermé sur la table",
-                            subtitle: "Confirme la séance finie", symbol: "bag"),
-                ProofOption(id: "selfie", title: "Selfie au bureau",
-                            subtitle: "Ton visage, au poste de travail", symbol: "face.smiling")
+                            subtitle: "Montre les pages remplies", symbol: "photo")
             ]),
             GoalVariant(id: "study", title: "Réviser", promise: "de réviser", proofs: [
                 ProofOption(id: "notes", title: "Photo de tes fiches",
-                            subtitle: "Montre le travail produit", symbol: "photo"),
-                ProofOption(id: "desk", title: "Photo du bureau en séance",
-                            subtitle: "Situe la session de révision", symbol: "mappin.and.ellipse"),
-                ProofOption(id: "selfie", title: "Selfie en révision",
-                            subtitle: "Ton visage, au travail", symbol: "face.smiling")
+                            subtitle: "Montre le travail produit", symbol: "photo")
             ])
         ])
     ]
