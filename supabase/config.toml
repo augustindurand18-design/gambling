@@ -232,15 +232,22 @@ otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
 otp_expiry = 3600
 
-# Use a production-ready SMTP server
-# [auth.email.smtp]
-# enabled = true
-# host = "smtp.sendgrid.net"
-# port = 587
-# user = "apikey"
-# pass = "env(SENDGRID_API_KEY)"
-# admin_email = "admin@email.com"
-# sender_name = "Admin"
+# Envoi reel des e-mails par Resend, en local comme en distant.
+#
+# La cle vit dans supabase/.env, jamais dans ce fichier : le depot est public.
+# Sans domaine verifie chez Resend, l'expediteur doit rester onboarding@resend.dev
+# et le seul destinataire accepte est l'adresse du compte Resend.
+#
+# Attention : tant que ce bloc est actif, les e-mails de developpement partent
+# pour de vrai et ne s'arretent plus dans Mailpit (http://127.0.0.1:54324).
+[auth.email.smtp]
+enabled = true
+host = "smtp.resend.com"
+port = 587
+user = "resend"
+pass = "env(RESEND_API_KEY)"
+admin_email = "onboarding@resend.dev"
+sender_name = "Gage"
 
 # Uncomment to customize email template
 # Connexion par code a six chiffres plutot que par lien : un lien exigerait
@@ -254,6 +261,14 @@ content_path = "./supabase/templates/magic_link.html"
 [auth.email.template.confirmation]
 subject = "Ton code de connexion Gage"
 content_path = "./supabase/templates/confirmation.html"
+
+# GoTrue journalise une demande de code sur un compte existant comme une
+# « recuperation ». Le gabarit par defaut de ce type envoie un lien : sans
+# cette entree, un utilisateur deja inscrit recevrait un lien la ou tous les
+# autres recoivent un code.
+[auth.email.template.recovery]
+subject = "Ton code de connexion Gage"
+content_path = "./supabase/templates/recovery.html"
 
 # [auth.email.template.invite]
 # subject = "You have been invited"
