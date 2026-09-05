@@ -14,11 +14,14 @@ settings:
     CURRENT_PROJECT_VERSION: "1"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     SWIFT_STRICT_CONCURRENCY: complete
-    # Aucun compte Apple Developer pour l'instant : on cible le simulateur,
-    # qui n'exige pas de signature.
-    CODE_SIGNING_ALLOWED: NO
+    # Aucun compte Apple Developer pour l'instant. On signe quand meme, en
+    # ad-hoc local ("-") : sans signature, le trousseau refuse d'ecrire et
+    # la session Supabase ne survit pas au premier appel — l'utilisateur
+    # semble connecte, puis toute requete repart en anonyme.
+    # L'ad-hoc ne demande ni compte ni equipe et suffit au simulateur.
+    CODE_SIGNING_ALLOWED: YES
     CODE_SIGNING_REQUIRED: NO
-    CODE_SIGN_IDENTITY: ""
+    CODE_SIGN_IDENTITY: "-"
 
 configs:
   Debug: debug

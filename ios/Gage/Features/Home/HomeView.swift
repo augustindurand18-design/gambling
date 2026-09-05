@@ -7,26 +7,41 @@ import SwiftUI
 /// l'historique, parce qu'eux seuls peuvent encore couter de l'argent si
 /// l'utilisateur ne fait rien.
 struct HomeView: View {
-    let snapshot: HomeSnapshot
-
+    @State private var store: HomeStore
     @State private var isCreating = false
     @State private var isShowingProfile = false
 
+    init(store: HomeStore = HomeStore()) {
+        _store = State(wrappedValue: store)
+    }
+
     var body: some View {
         ScreenBackground(glow: .topTrailing) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: Theme.Spacing.large) {
-                    header
-                    AssiduityBanner(status: snapshot.assiduity)
-                    challenges
-                    consistency
+            switch store.state {
+            case .loading:
+                ProgressView()
+                    .controlSize(.large)
+                    .tint(Theme.Colors.brand)
+
+            case .failed(let message):
+                failure(message)
+
+            case .loaded(let snapshot):
+                ScrollView {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.large) {
+                        header(snapshot)
+                        AssiduityBanner(status: snapshot.assiduity)
+                        challenges(snapshot)
+                        consistency(snapshot)
+                    }
+                    .padding(.horizontal, Theme.Spacing.screenHorizontal)
+                    .padding(.top, Theme.Spacing.small)
+                    .padding(.bottom, Theme.Spacing.large)
                 }
-                .padding(.horizontal, Theme.Spacing.screenHorizontal)
-                .padding(.top, Theme.Spacing.small)
-                .padding(.bottom, Theme.Spacing.large)
+                .scrollIndicators(.hidden)
             }
-            .scrollIndicators(.hidden)
         }
+        .task { await store.loadIfNeeded() }
         .safeAreaInset(edge: .bottom) {
             PrimaryButton(title: "Nouvel objectif", showsChevron: false) {
                 isCreating = true
@@ -37,14 +52,47 @@ struct HomeView: View {
             .background(Theme.Gradients.bottomFade)
         }
         .fullScreenCover(isPresented: $isCreating) {
-            NewGoalFlowView { isCreating = false }
+            NewGoalFlowView {
+                isCreating = false
+                // L'objectif vient d'etre engage cote serveur : l'accueil
+                // doit le montrer, pas afficher l'etat d'avant.
+                Task { await store.reload() }
+            }
         }
         .sheet(isPresented: $isShowingProfile) {
-            ProfileView(assiduity: snapshot.assiduity)
+            ProfileView(assiduity: assiduity)
         }
     }
 
-    private var header: some View {
+    /// L'assiduite du moment, ou un compteur a zero tant que rien n'est
+    /// charge : le profil reste ouvrable pendant le chargement.
+    private var assiduity: AssiduityStatus {
+        if case .loaded(let snapshot) = store.state { return snapshot.assiduity }
+        return AssiduityStatus(keptThisWeek: 0)
+    }
+
+    private func failure(_ message: String) -> some View {
+        VStack(spacing: Theme.Spacing.medium) {
+            Text("Tes défis n'ont pas pu être chargés")
+                .font(Theme.Fonts.title)
+                .foregroundStyle(Theme.Colors.ink)
+                .multilineTextAlignment(.center)
+
+            Text(message)
+                .font(Theme.Fonts.body)
+                .foregroundStyle(Theme.Colors.inkMuted)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
+            PrimaryButton(title: "Réessayer", showsChevron: false) {
+                Task { await store.reload() }
+            }
+            .padding(.top, Theme.Spacing.small)
+        }
+        .padding(.horizontal, Theme.Spacing.screenHorizontal)
+    }
+
+    private func header(_ snapshot: HomeSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Spacer(minLength: 0)
@@ -56,14 +104,14 @@ struct HomeView: View {
                 .font(Theme.Fonts.display)
                 .foregroundStyle(Theme.Colors.ink)
 
-            Text(headerDetail)
+            Text(headerDetail(snapshot))
                 .font(Theme.Fonts.body)
                 .foregroundStyle(Theme.Colors.inkMuted)
         }
         .padding(.top, Theme.Spacing.small)
     }
 
-    private var headerDetail: String {
+    private func headerDetail(_ snapshot: HomeSnapshot) -> String {
         let atRisk = snapshot.challenges.filter { $0.state.hasMoneyAtRisk }
         guard !atRisk.isEmpty else { return "Rien en jeu pour le moment." }
         let total = atRisk.reduce(0) { $0 + $1.stakeCents }
@@ -71,7 +119,7 @@ struct HomeView: View {
     }
 
     @ViewBuilder
-    private var challenges: some View {
+    private func challenges(_ snapshot: HomeSnapshot) -> some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.small + 4) {
             Text("En cours")
                 .font(Theme.Fonts.sectionTitle)
@@ -111,7 +159,7 @@ struct HomeView: View {
         }
     }
 
-    private var consistency: some View {
+    private func consistency(_ snapshot: HomeSnapshot) -> some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.medium - 4) {
             Text("Ta régularité")
                 .font(Theme.Fonts.sectionTitle)
@@ -152,6 +200,10 @@ struct HomeView: View {
     }
 }
 
-#Preview("Avec défis") { HomeView(snapshot: .sample) }
+#Preview("Avec défis") { HomeView(store: HomeStore(state: .loaded(.sample))) }
 
-#Preview("Compte neuf") { HomeView(snapshot: .empty) }
+#Preview("Compte neuf") { HomeView(store: HomeStore(state: .loaded(.empty))) }
+
+#Preview("Chargement") { HomeView(store: HomeStore(state: .loading)) }
+
+#Preview("Échec") { HomeView(store: HomeStore(state: .failed("Connexion impossible. Vérifie ton réseau et réessaie."))) }

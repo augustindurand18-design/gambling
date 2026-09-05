@@ -54,8 +54,14 @@ final class SessionStore {
 
     static let uiTestingUserID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
 
-    private static var isUITestingSignedIn: Bool {
+    /// Vrai pendant un test d'interface. La session etant factice, aucune
+    /// requete ne remonterait quoi que ce soit : les ecrans servent alors
+    /// leur jeu de demonstration, ce qui garde les tests hermetiques et sans
+    /// dependance a une base locale allumee.
+    static var isUITesting: Bool {
         ProcessInfo.processInfo.arguments.contains(uiTestingArgument)
     }
+
+    private static var isUITestingSignedIn: Bool { isUITesting }
     #endif
 }

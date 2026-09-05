@@ -6,6 +6,8 @@ import SwiftUI
 /// C'est la session Supabase qui decide, et elle seule. L'ancien drapeau en
 /// memoire laissait entrer sans compte, ce qui ne pouvait pas survivre au
 /// branchement de la base : sans session, aucune requete ne passe la RLS.
+///
+/// L'accueil charge lui-meme ses objectifs depuis le serveur.
 struct AppRootView: View {
     @State private var session = SessionStore()
 
@@ -26,7 +28,7 @@ struct AppRootView: View {
                 OnboardingFlowView()
 
             case .signedIn:
-                HomeView(snapshot: .sample)
+                HomeView()
             }
         }
         .task { await session.observe() }
