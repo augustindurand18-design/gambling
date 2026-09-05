@@ -1,23 +1,23 @@
-<!--
-  Connexion par code a six chiffres.
+<!doctype html>
+<html lang="fr">
+  <body style="margin:0;padding:24px;background:#f6f7f9;font-family:-apple-system,'Helvetica Neue',Helvetica,Arial,sans-serif;color:#141b3c">
+    <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:16px;padding:32px">
+      <h1 style="margin:0 0 16px;font-size:20px">Ton code de connexion</h1>
 
-  Le gabarit par defaut de Supabase envoie un lien (`{{ .ConfirmationURL }}`).
-  Un lien exige des liens profonds, donc un domaine associe, donc le compte
-  Apple Developer. Le code se lit et se recopie sans rien de tout cela, et
-  fonctionne en simulateur.
+      <p style="margin:0 0 24px;font-size:15px;line-height:1.5">
+        Voici le code à saisir dans l'application :
+      </p>
 
-  Le meme gabarit devra etre pose dans le tableau de bord Supabase pour le
-  projet distant : la configuration locale ne le suit pas.
--->
-<h2>Ton code de connexion</h2>
+      <p style="margin:0 0 24px;font-size:32px;font-weight:700;letter-spacing:8px;color:#4630d8">{{ .Token }}</p>
 
-<p>Voici ton code pour te connecter à Gage :</p>
+      <p style="margin:0 0 24px;font-size:15px;line-height:1.5">
+        Il expire dans une heure et ne sert qu'une fois.
+      </p>
 
-<p style="font-size: 28px; font-weight: bold; letter-spacing: 6px;">{{ .Token }}</p>
-
-<p>Il expire dans une heure et ne sert qu'une fois.</p>
-
-<p style="color: #6b7280; font-size: 13px;">
-  Si tu n'as pas demandé ce code, ignore ce message : personne ne peut
-  accéder à ton compte sans lui.
-</p>
+      <p style="margin:0;font-size:13px;line-height:1.5;color:#6b7280">
+        Si tu n'as pas demandé ce code, ignore ce message : personne ne peut
+        accéder à ton compte sans lui.
+      </p>
+    </div>
+  </body>
+</html>

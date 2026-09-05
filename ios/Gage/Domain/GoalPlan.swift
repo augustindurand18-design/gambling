@@ -44,8 +44,8 @@ struct GoalPlan: Equatable, Sendable {
 
     func time(for day: Weekday) -> DayTime { times[day] ?? .onTheDay }
 
-    /// « 3 fois par semaine ».
-    var frequencyText: String { "\(timesPerWeek) fois par semaine" }
+    /// « 3 fois cette semaine ».
+    var frequencyText: String { "\(timesPerWeek) fois cette semaine" }
 
     /// Debut de la phrase, sans le rythme : la roue le complete a l'ecran.
     var promiseText: String {
@@ -83,7 +83,7 @@ struct GoalPlan: Equatable, Sendable {
     }
 
     /// Le plan tient-il la promesse annoncee ? On exige autant de jours que
-    /// de seances promises : engager de l'argent sur « 3 fois par semaine »
+    /// de seances promises : engager de l'argent sur « 3 fois cette semaine »
     /// en n'ayant coche que deux jours rendrait l'echec certain d'avance.
     var isScheduleComplete: Bool { days.count == timesPerWeek }
 

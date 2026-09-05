@@ -67,9 +67,9 @@ struct PlanWeekView: View {
                     selectedFont: Theme.Fonts.sentence
                 )
                 .frame(width: 78)
-                .accessibilityLabel("Séances par semaine")
+                .accessibilityLabel("Séances cette semaine")
 
-                Text("fois par semaine")
+                Text("fois cette semaine")
                     .font(Theme.Fonts.sentence)
                     .foregroundStyle(Theme.Colors.ink)
             }

@@ -20,8 +20,8 @@ final class GoalPlanTests: XCTestCase {
         plan.selectCategory("sport")
         plan.selectVariant("gym")
 
-        XCTAssertEqual(plan.sentence, "Je me promets d'aller à la salle 3 fois par semaine.")
-        XCTAssertEqual(plan.shortTitle, "La salle · 3 fois par semaine")
+        XCTAssertEqual(plan.sentence, "Je me promets d'aller à la salle 3 fois cette semaine.")
+        XCTAssertEqual(plan.shortTitle, "La salle · 3 fois cette semaine")
     }
 
     func testLeRythmeSeLitDansLaPhrase() {
@@ -30,7 +30,7 @@ final class GoalPlanTests: XCTestCase {
         plan.selectVariant("plain")
         plan.setTimesPerWeek(1)
 
-        XCTAssertEqual(plan.sentence, "Je me promets de me lever 1 fois par semaine.")
+        XCTAssertEqual(plan.sentence, "Je me promets de me lever 1 fois cette semaine.")
     }
 
     // MARK: - Cascade

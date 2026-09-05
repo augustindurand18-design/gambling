@@ -158,7 +158,7 @@ final class OnboardingNavigationTests: XCTestCase {
             "L'écran d'engagement ne s'est pas affiché"
         )
         XCTAssertTrue(
-            app.staticTexts["Je me promets d'aller à la salle 3 fois par semaine."].exists,
+            app.staticTexts["Je me promets d'aller à la salle 3 fois cette semaine."].exists,
             "La promesse n'est pas rappelée à l'engagement"
         )
         XCTAssertTrue(
