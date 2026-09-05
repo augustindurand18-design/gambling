@@ -84,6 +84,16 @@ struct SignInView: View {
                     .tint(Theme.Colors.brand)
             }
         }
+        .onChange(of: code) { _, newValue in
+            // On borne la saisie a six chiffres (l'autofill ou un collage
+            // peut en fournir davantage).
+            let digits = String(newValue.filter(\.isNumber).prefix(6))
+            if digits != code { code = digits }
+            // Des que le code est complet, on lance la connexion sans
+            // attendre un appui sur le bouton.
+            guard step == .code, !isWorking, digits.count == 6 else { return }
+            verify()
+        }
         .toolbar(.hidden, for: .navigationBar)
     }
 
