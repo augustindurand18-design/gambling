@@ -65,6 +65,7 @@ struct ChooseProofView: View {
                     isEnabled: composition.selectedProof != nil,
                     action: onContinue
                 )
+                .accessibilityIdentifier("proof-continue")
             }
             .padding(.horizontal, Theme.Spacing.screenHorizontal)
             .padding(.top, Theme.Spacing.screenTop)

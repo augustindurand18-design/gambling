@@ -53,13 +53,13 @@ struct ProfileView: View {
                 .background(Theme.Colors.card, in: .circle)
                 .shadow(color: Theme.Colors.ink.opacity(0.06), radius: 10, y: 4)
 
-            // Le compte n'est pas encore branche : ni Sign in with Apple ni
-            // la session Supabase ne sont en place.
-            Text("Compte non connecté")
+            Text(AuthAPI.shared.currentEmail ?? "Compte connecté")
                 .font(Theme.Fonts.cardTitle)
                 .foregroundStyle(Theme.Colors.ink)
+                .lineLimit(1)
+                .truncationMode(.middle)
 
-            Text("Connecte-toi pour retrouver tes défis sur tous tes appareils.")
+            Text("Tes défis te suivent sur tous tes appareils.")
                 .font(Theme.Fonts.cardSubtitle)
                 .foregroundStyle(Theme.Colors.inkMuted)
                 .multilineTextAlignment(.center)
@@ -122,6 +122,12 @@ struct ProfileView: View {
             SettingsDivider()
             SettingsRow(symbol: "questionmark.circle", title: "Aide") {
                 Log.app.debug("Profil : aide")
+            }
+            SettingsDivider()
+            SettingsRow(symbol: "rectangle.portrait.and.arrow.right", title: "Se déconnecter") {
+                // L'ecran se ferme de lui-meme : `SessionStore` capte la fin
+                // de session et ramene l'application sur l'accueil.
+                Task { try? await AuthAPI.shared.signOut() }
             }
         }
     }

@@ -46,6 +46,10 @@ struct ComposeGoalView: View {
                     isEnabled: composition.isGoalChosen,
                     action: onContinue
                 )
+                // L'ecran precedent reste dans la pile avec un bouton du meme
+                // libelle : sans identifiant, une requete d'interface ne sait
+                // pas lequel des deux elle designe.
+                .accessibilityIdentifier("compose-continue")
 
                 Text("Seuls des objectifs prouvables en photo.")
                     .font(Theme.Fonts.footnote)

@@ -47,24 +47,32 @@ targets:
     configFiles:
       Debug: Config/Debug.xcconfig
       Release: Config/Release.xcconfig
+    # Info.plist genere par XcodeGen, et non par GENERATE_INFOPLIST_FILE :
+    # le mecanisme INFOPLIST_KEY_<nom> ne fonctionne que pour les cles
+    # qu'Xcode connait. Les cles maison Gage* etaient silencieusement
+    # ignorees, et l'application ne pouvait pas lire sa propre configuration
+    # — sans que rien ne le signale, puisque aucune requete reseau n'etait
+    # encore emise.
+    info:
+      path: Config/Info.plist
+      properties:
+        CFBundleDisplayName: Gage
+        UILaunchScreen: {}
+        UIApplicationSupportsIndirectInputEvents: true
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        # La camera est le seul acces media : pas d'entree photothèque, par conception.
+        NSCameraUsageDescription: "Gage utilise l'appareil photo pour capturer la preuve de tes objectifs. Les photos sont prises uniquement dans l'application."
+        NSLocationWhenInUseUsageDescription: "La position sert uniquement a verifier que tu es bien au lieu que tu as choisi pour ton objectif."
+        # Valeurs injectees depuis Config/Secrets.xcconfig
+        GageSupabaseURL: $(SUPABASE_URL)
+        GageSupabaseAnonKey: $(SUPABASE_ANON_KEY)
+        GageStripePublishableKey: $(STRIPE_PUBLISHABLE_KEY)
+        GageSentryDSN: $(SENTRY_DSN)
+        GageTelemetryDeckAppID: $(TELEMETRYDECK_APP_ID)
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.augustindurand.gage
         PRODUCT_NAME: Gage
-        GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_CFBundleDisplayName: Gage
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
-        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
-        # La camera est le seul acces media : pas d'entree photothèque, par conception.
-        INFOPLIST_KEY_NSCameraUsageDescription: "Gage utilise l'appareil photo pour capturer la preuve de tes objectifs. Les photos sont prises uniquement dans l'application."
-        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "La position sert uniquement a verifier que tu es bien au lieu que tu as choisi pour ton objectif."
-        # Valeurs injectees depuis Config/Secrets.xcconfig
-        INFOPLIST_KEY_GageSupabaseURL: $(SUPABASE_URL)
-        INFOPLIST_KEY_GageSupabaseAnonKey: $(SUPABASE_ANON_KEY)
-        INFOPLIST_KEY_GageStripePublishableKey: $(STRIPE_PUBLISHABLE_KEY)
-        INFOPLIST_KEY_GageSentryDSN: $(SENTRY_DSN)
-        INFOPLIST_KEY_GageTelemetryDeckAppID: $(TELEMETRYDECK_APP_ID)
     # Entitlements desactives tant qu'il n'y a pas de compte Apple Developer :
     # aps-environment et Sign in with Apple exigent un profil de provisioning.
     # Le simulateur n'a besoin d'aucune signature. A reactiver le jour de

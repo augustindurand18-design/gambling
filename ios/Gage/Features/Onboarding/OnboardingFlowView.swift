@@ -1,33 +1,27 @@
 import SwiftUI
 
-/// Premier lancement : l'accueil de bienvenue, puis la creation du premier
-/// objectif.
+/// Premier lancement : l'accueil de bienvenue, puis la connexion.
 ///
-/// Le parcours de creation est le meme que celui lance depuis l'accueil de
-/// l'application ; l'onboarding ne fait que l'ouvrir une premiere fois.
+/// Les deux boutons menent au meme ecran. Creer un compte et en retrouver un
+/// sont le meme appel cote serveur, et l'utilisateur n'a pas a se souvenir
+/// s'il est deja venu.
+///
+/// Le premier objectif ne se compose plus ici : il faut une session pour
+/// l'engager, puisque `commit_goal` est reservee au role authenticated. Une
+/// fois connecte, l'utilisateur arrive sur l'accueil et son etat vide l'invite
+/// a composer son premier defi.
 struct OnboardingFlowView: View {
-    /// Appele quand le premier objectif est engage.
-    let onFinished: () -> Void
-
-    @State private var isCreating = false
+    @State private var isSigningIn = false
 
     var body: some View {
         WelcomeView(
-            onStart: { isCreating = true },
-            // Raccourci provisoire : « Se connecter » ouvre directement
-            // l'accueil. Il n'y a encore aucune authentification — Sign in
-            // with Apple attend le compte Apple Developer, et la session
-            // Supabase attend le projet distant. A remplacer par le vrai
-            // parcours avant toute bêta : en l'etat, n'importe qui entre.
-            onSignIn: onFinished
+            onStart: { isSigningIn = true },
+            onSignIn: { isSigningIn = true }
         )
-        .fullScreenCover(isPresented: $isCreating) {
-            NewGoalFlowView {
-                isCreating = false
-                onFinished()
-            }
+        .fullScreenCover(isPresented: $isSigningIn) {
+            SignInView()
         }
     }
 }
 
-#Preview { OnboardingFlowView(onFinished: {}) }
+#Preview { OnboardingFlowView() }

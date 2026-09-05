@@ -1,19 +1,35 @@
 import SwiftUI
 
-/// Racine de navigation : onboarding au premier lancement, accueil ensuite.
+/// Racine de navigation : accueil de bienvenue tant que personne n'est
+/// connecte, application ensuite.
 ///
-/// L'aiguillage se fait pour l'instant en memoire, et l'accueil affiche un
-/// jeu de demonstration : ni la session ni les objectifs ne sont encore lus
-/// depuis Supabase.
+/// C'est la session Supabase qui decide, et elle seule. L'ancien drapeau en
+/// memoire laissait entrer sans compte, ce qui ne pouvait pas survivre au
+/// branchement de la base : sans session, aucune requete ne passe la RLS.
 struct AppRootView: View {
-    @State private var hasOnboarded = false
+    @State private var session = SessionStore()
 
     var body: some View {
-        if hasOnboarded {
-            HomeView(snapshot: .sample)
-        } else {
-            OnboardingFlowView { hasOnboarded = true }
+        Group {
+            switch session.state {
+            case .loading:
+                // La session est restauree depuis le trousseau : cet ecran
+                // dure le temps d'une lecture locale, pas d'un aller-retour
+                // reseau.
+                ScreenBackground {
+                    ProgressView()
+                        .controlSize(.large)
+                        .tint(Theme.Colors.brand)
+                }
+
+            case .signedOut:
+                OnboardingFlowView()
+
+            case .signedIn:
+                HomeView(snapshot: .sample)
+            }
         }
+        .task { await session.observe() }
     }
 }
 

@@ -1,21 +1,76 @@
 import XCTest
 
-/// Parcours d'onboarding complet : accueil, mise, composition de l'objectif,
-/// choix de la preuve, engagement signé.
+/// Parcours de premier lancement : connexion, puis création d'un objectif
+/// jusqu'à l'engagement signé.
+///
+/// Les tests qui portent sur la création partent d'une application déjà
+/// connectée : un test d'interface ne peut pas lire le code reçu par e-mail.
+/// Le drapeau `-uiTestSignedIn` n'existe qu'en debug.
 ///
 /// Le test capture aussi chaque écran en pièce jointe, ce qui donne un
 /// comparatif avec les maquettes à chaque exécution.
 final class OnboardingNavigationTests: XCTestCase {
 
-    func testParcoursOnboarding() {
+    // MARK: - Connexion
+
+    /// L'accueil de bienvenue ne laisse plus entrer personne sans compte :
+    /// sans session, aucune requête ne passe la RLS, et `commit_goal` est
+    /// réservée au rôle authenticated.
+    func testCommencerDemandeUneAdresseEmail() {
         let app = XCUIApplication()
         app.launch()
 
         let commencer = app.buttons["Commencer"]
         XCTAssertTrue(commencer.waitForExistence(timeout: 10), "Écran d'accueil absent")
-        attach(app, name: "01-accueil")
-
         commencer.tap()
+
+        XCTAssertTrue(
+            app.staticTexts["Ton adresse e-mail"].waitForExistence(timeout: 5),
+            "L'écran de connexion ne s'est pas affiché"
+        )
+
+        let recevoir = app.buttons["Recevoir un code"]
+        XCTAssertTrue(recevoir.exists, "Bouton d'envoi du code absent")
+        XCTAssertFalse(recevoir.isEnabled, "Une adresse vide ne doit pas pouvoir être envoyée")
+
+        let champ = app.textFields["email-field"]
+        XCTAssertTrue(champ.exists, "Champ d'adresse absent")
+        champ.tap()
+        champ.typeText("alice@test.local")
+
+        XCTAssertTrue(recevoir.isEnabled, "Une adresse plausible doit débloquer l'envoi")
+        attach(app, name: "01-connexion")
+    }
+
+    /// « Se connecter » et « Commencer » mènent au même écran : côté serveur
+    /// c'est le même appel, et l'utilisateur n'a pas à se souvenir s'il est
+    /// déjà venu.
+    func testSeConnecterMeneAuMemeEcran() {
+        let app = XCUIApplication()
+        app.launch()
+
+        let seConnecter = app.buttons["Se connecter"]
+        XCTAssertTrue(seConnecter.waitForExistence(timeout: 10), "Bouton de connexion absent")
+        seConnecter.tap()
+
+        XCTAssertTrue(
+            app.staticTexts["Ton adresse e-mail"].waitForExistence(timeout: 5),
+            "« Se connecter » doit mener au même écran que « Commencer »"
+        )
+    }
+
+    // MARK: - Création d'un objectif
+
+    func testParcoursCreationObjectif() {
+        let app = launchSignedIn()
+
+        XCTAssertTrue(
+            app.staticTexts["Tes défis"].waitForExistence(timeout: 10),
+            "L'accueil ne s'est pas affiché pour un utilisateur connecté"
+        )
+        attach(app, name: "02-accueil")
+
+        app.buttons["Nouvel objectif"].tap()
 
         XCTAssertTrue(
             app.staticTexts["Combien tu veux miser ?"].waitForExistence(timeout: 5),
@@ -23,24 +78,23 @@ final class OnboardingNavigationTests: XCTestCase {
         )
         // Le montant est formaté avec une espace insécable : on ne compare
         // que le préfixe stable du libellé.
-        let suite = app.buttons.matching(
+        let mise = app.buttons.matching(
             NSPredicate(format: "label BEGINSWITH %@", "Continuer avec")
         ).firstMatch
-        XCTAssertTrue(suite.exists, "Bouton de confirmation du montant absent")
-        attach(app, name: "02-choix-mise")
+        XCTAssertTrue(mise.exists, "Bouton de confirmation du montant absent")
+        attach(app, name: "03-choix-mise")
 
-        suite.tap()
+        mise.tap()
 
-        // Étape de composition : tant qu'aucun verbe n'est choisi, la phrase
-        // reste une invitation et la suite est fermée.
-        let invitation = app.staticTexts["Fais tourner pour composer ton objectif."]
+        // Tant qu'aucun verbe n'est choisi, la phrase reste une invitation et
+        // la suite est fermée.
         XCTAssertTrue(
-            invitation.waitForExistence(timeout: 5),
+            app.staticTexts["Fais tourner pour composer ton objectif."].waitForExistence(timeout: 5),
             "L'écran de composition ne s'est pas affiché"
         )
-        let continuer = app.buttons["Continuer"]
-        XCTAssertFalse(continuer.isEnabled, "La suite doit rester fermée sans objectif composé")
-        attach(app, name: "03-composition-vide")
+        let composeContinuer = app.buttons["compose-continue"]
+        XCTAssertFalse(composeContinuer.isEnabled, "La suite doit rester fermée sans objectif composé")
+        attach(app, name: "04-composition-vide")
 
         app.buttons["Me lever"].tap()
 
@@ -48,26 +102,27 @@ final class OnboardingNavigationTests: XCTestCase {
             app.staticTexts["Je me promets de me lever à 7 h 00."].waitForExistence(timeout: 5),
             "La phrase ne s'est pas composée"
         )
-        XCTAssertTrue(continuer.isEnabled, "La suite doit s'ouvrir dès qu'un objectif est composé")
-        attach(app, name: "04-composition")
+        XCTAssertTrue(composeContinuer.isEnabled, "La suite doit s'ouvrir dès qu'un objectif est composé")
+        attach(app, name: "05-composition")
 
-        continuer.tap()
+        composeContinuer.tap()
 
         XCTAssertTrue(
             app.staticTexts["Que photographies-tu ?"].waitForExistence(timeout: 5),
             "L'écran de choix de preuve ne s'est pas affiché"
         )
-        XCTAssertFalse(continuer.isEnabled, "La suite doit rester fermée sans preuve choisie")
+        let proofContinuer = app.buttons["proof-continue"]
+        XCTAssertFalse(proofContinuer.isEnabled, "La suite doit rester fermée sans preuve choisie")
 
         let preuve = app.buttons.matching(
             NSPredicate(format: "label BEGINSWITH %@", "Photo du lit fait")
         ).firstMatch
         XCTAssertTrue(preuve.exists, "Preuve attendue absente de la liste")
         preuve.tap()
-        XCTAssertTrue(continuer.isEnabled, "La suite doit s'ouvrir dès qu'une preuve est choisie")
-        attach(app, name: "05-choix-preuve")
+        XCTAssertTrue(proofContinuer.isEnabled, "La suite doit s'ouvrir dès qu'une preuve est choisie")
+        attach(app, name: "06-choix-preuve")
 
-        continuer.tap()
+        proofContinuer.tap()
 
         XCTAssertTrue(
             app.staticTexts["LA CONSIGNE"].waitForExistence(timeout: 5),
@@ -77,7 +132,7 @@ final class OnboardingNavigationTests: XCTestCase {
             app.staticTexts["Photo du lit fait requise"].exists,
             "La preuve choisie n'est pas rappelée à l'engagement"
         )
-        attach(app, name: "06-engagement")
+        attach(app, name: "07-engagement")
 
         // Le retour ramène à l'étape précédente, preuve conservée.
         app.buttons["Retour"].tap()
@@ -90,9 +145,7 @@ final class OnboardingNavigationTests: XCTestCase {
     /// La signature conditionne le geste d'engagement : sans elle, le curseur
     /// reste verrouillé. C'est la garde qui protège le consentement au débit.
     func testEngagementVerrouilleTantQueNonSigne() {
-        let app = XCUIApplication()
-        app.launch()
-
+        let app = launchSignedIn()
         composerJusquALEngagement(app)
 
         XCTAssertTrue(
@@ -100,40 +153,19 @@ final class OnboardingNavigationTests: XCTestCase {
             "Le curseur d'engagement doit rester verrouillé tant que rien n'est signé"
         )
 
-        // Un trait dans la zone de signature déverrouille le curseur.
-        let zone = app.otherElements["signature-pad"]
-        XCTAssertTrue(zone.waitForExistence(timeout: 5), "Zone de signature absente")
-        zone.swipeRight()
+        app.otherElements["signature-pad"].swipeRight()
 
         XCTAssertTrue(
             app.buttons["Glisse pour t'engager"].waitForExistence(timeout: 5),
             "La signature n'a pas déverrouillé le curseur d'engagement"
         )
-        attach(app, name: "07-engagement-signe")
+        attach(app, name: "08-engagement-signe")
     }
 
-    /// « Se connecter » mène droit à l'accueil, sans repasser par la
-    /// création d'un objectif.
-    func testSeConnecterOuvreLAccueil() {
-        let app = XCUIApplication()
-        app.launch()
-
-        let seConnecter = app.buttons["Se connecter"]
-        XCTAssertTrue(seConnecter.waitForExistence(timeout: 10), "Bouton de connexion absent")
-        seConnecter.tap()
-
-        XCTAssertTrue(
-            app.staticTexts["Tes défis"].waitForExistence(timeout: 5),
-            "La connexion n'a pas ouvert l'accueil"
-        )
-    }
-
-    /// Une fois l'engagement signé, l'application bascule sur l'accueil et
-    /// n'y revient plus : l'onboarding ne se rejoue pas.
-    func testEngagementMeneALAccueil() {
-        let app = XCUIApplication()
-        app.launch()
-
+    /// Une fois l'engagement signé, le parcours se referme et rend la main à
+    /// l'accueil.
+    func testEngagementRamèneALAccueil() {
+        let app = launchSignedIn()
         composerJusquALEngagement(app)
 
         app.otherElements["signature-pad"].swipeRight()
@@ -151,16 +183,22 @@ final class OnboardingNavigationTests: XCTestCase {
             app.staticTexts["Tu t'es engagé."].waitForExistence(timeout: 5),
             "La confirmation d'engagement ne s'est pas affichée"
         )
-        attach(app, name: "08-confirmation")
+        attach(app, name: "09-confirmation")
 
         app.buttons["Terminer"].tap()
 
         XCTAssertTrue(
             app.staticTexts["Tes défis"].waitForExistence(timeout: 5),
-            "L'accueil ne s'est pas affiché après l'engagement"
+            "L'accueil ne s'est pas réaffiché après l'engagement"
         )
-        XCTAssertTrue(app.buttons["Nouvel objectif"].exists, "Création d'un nouvel objectif absente de l'accueil")
-        attach(app, name: "09-accueil")
+    }
+
+    // MARK: - Accueil
+
+    func testAccueilMontreLaRegulariteEtLeProfil() {
+        let app = launchSignedIn()
+
+        XCTAssertTrue(app.staticTexts["Tes défis"].waitForExistence(timeout: 10))
 
         app.swipeUp()
         XCTAssertTrue(
@@ -178,6 +216,10 @@ final class OnboardingNavigationTests: XCTestCase {
             app.staticTexts["Plafond par objectif"].waitForExistence(timeout: 5),
             "Le profil ne s'est pas ouvert depuis l'accueil"
         )
+        XCTAssertTrue(
+            app.staticTexts["Se déconnecter"].exists,
+            "La déconnexion doit être accessible depuis le profil"
+        )
         attach(app, name: "11-profil")
 
         app.buttons["Fermer"].tap()
@@ -187,8 +229,20 @@ final class OnboardingNavigationTests: XCTestCase {
         )
     }
 
-    /// Mène de l'accueil de bienvenue jusqu'à l'écran d'engagement, objectif
-    /// composé et preuve choisie.
+    // MARK: - Utilitaires
+
+    /// Ouvre l'application sur une session factice. Un test d'interface ne
+    /// peut pas lire le code à six chiffres reçu par e-mail ; sans ce
+    /// raccourci, plus rien de ce qui suit la connexion ne serait couvert.
+    private func launchSignedIn() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments += ["-uiTestSignedIn"]
+        app.launch()
+        return app
+    }
+
+    /// Mène de l'accueil jusqu'à l'écran d'engagement, objectif composé et
+    /// preuve choisie.
     ///
     /// Chaque écran est attendu avant d'être touché : les transitions sont
     /// animées, et taper un bouton pendant l'animation donne un échec qui ne
@@ -198,9 +252,9 @@ final class OnboardingNavigationTests: XCTestCase {
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
-        let commencer = app.buttons["Commencer"]
-        XCTAssertTrue(commencer.waitForExistence(timeout: 10), "Écran d'accueil absent", file: file, line: line)
-        commencer.tap()
+        let nouvel = app.buttons["Nouvel objectif"]
+        XCTAssertTrue(nouvel.waitForExistence(timeout: 10), "Accueil absent", file: file, line: line)
+        nouvel.tap()
 
         let mise = app.buttons.matching(
             NSPredicate(format: "label BEGINSWITH %@", "Continuer avec")
@@ -212,16 +266,16 @@ final class OnboardingNavigationTests: XCTestCase {
         XCTAssertTrue(verbe.waitForExistence(timeout: 5), "Écran de composition absent", file: file, line: line)
         verbe.tap()
 
-        let continuer = app.buttons["Continuer"]
-        XCTAssertTrue(continuer.waitForExistence(timeout: 5), "Suite du parcours absente", file: file, line: line)
-        continuer.tap()
+        let composeContinuer = app.buttons["compose-continue"]
+        XCTAssertTrue(composeContinuer.waitForExistence(timeout: 5), "Suite du parcours absente", file: file, line: line)
+        composeContinuer.tap()
 
         let preuve = app.buttons.matching(
             NSPredicate(format: "label BEGINSWITH %@", "Photo du lit fait")
         ).firstMatch
         XCTAssertTrue(preuve.waitForExistence(timeout: 5), "Écran de preuve absent", file: file, line: line)
         preuve.tap()
-        continuer.tap()
+        app.buttons["proof-continue"].tap()
 
         XCTAssertTrue(
             app.staticTexts["LA CONSIGNE"].waitForExistence(timeout: 5),

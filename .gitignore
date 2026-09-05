@@ -8,6 +8,8 @@ ios/DerivedData/
 ios/build/
 ios/.swiftpm/
 ios/Config/Secrets.xcconfig
+# Genere par XcodeGen depuis project.yml, au meme titre que le .xcodeproj
+ios/Config/Info.plist
 *.xcuserstate
 xcuserdata/
 

@@ -243,6 +243,18 @@ otp_expiry = 3600
 # sender_name = "Admin"
 
 # Uncomment to customize email template
+# Connexion par code a six chiffres plutot que par lien : un lien exigerait
+# des liens profonds, donc un domaine associe, donc le compte Apple Developer.
+# A reporter dans le tableau de bord du projet distant, qui ne lit pas ce
+# fichier.
+[auth.email.template.magic_link]
+subject = "Ton code de connexion Gage"
+content_path = "./supabase/templates/magic_link.html"
+
+[auth.email.template.confirmation]
+subject = "Ton code de connexion Gage"
+content_path = "./supabase/templates/confirmation.html"
+
 # [auth.email.template.invite]
 # subject = "You have been invited"
 # content_path = "./supabase/templates/invite.html"
