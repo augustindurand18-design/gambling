@@ -33,7 +33,7 @@ réelles (RLS, triggers, permissions de schéma) n'étaient pas visibles à la
 lecture et n'ont été trouvées qu'en lançant le schéma contre une vraie base.
 
 ```bash
-supabase test db                                      # 116 tests
+supabase test db                                      # 122 tests
 deno test supabase/functions --allow-env --no-check   # 60 tests
 ./scripts/ios-test.sh                                 # 68 tests
 ```
@@ -274,6 +274,18 @@ _(date + décision + raison)_
   confiance sous 0,8 et l'échantillon aléatoire de 5 %. À réexaminer avant la
   bêta : c'est la garde qui empêchait l'IA de trancher seule jusqu'au plafond
   de 100 €.
+- 2026-09-06 : **une revue humaine non tranchée sous 24 h se clôt au bénéfice
+  de l'utilisateur** (`0038`). `human_review` n'avait aucune issue : le tableau
+  de revue n'existe pas, et ces objectifs restaient sur l'accueil
+  indéfiniment, mise immobilisée. Le sens de la clôture découle de
+  l'invariant 2 — un doute que personne ne lève ne peut pas coûter d'argent.
+  **Contrepartie à connaître** : la relecture aléatoire anti-fraude (5 %) se
+  solde désormais par une validation automatique, elle ne dissuade donc plus
+  rien tant que personne ne tient ce poste.
+  Piège trouvé en écrivant les tests : l'ancienneté d'une revue **ne se lit
+  pas dans `goals.updated_at`**, qu'un déclencheur remet à `now()` à chaque
+  écriture. Elle se lit dans `goal_state_transitions`. Et insérer un objectif
+  déjà en `human_review` y journalise une entrée à `now()`.
 - 2026-09-06 : **la vérification part à la soumission** (`0037`), et non plus
   au battement suivant. Une preuve envoyée à 26'05 attendait 27'00 avant que
   le modèle ne commence — près d'une minute d'écran d'attente pour un verdict
@@ -409,6 +421,7 @@ Toutes provisoires, isolées en constantes. À arbitrer (voir `docs/architecture
 | Rétention des photos | 60 j | `purge-proofs` (à écrire) |
 | Délai de soumission d'une preuve | 15 min | `app.proof_window_seconds()`, `MAX_CAPTURE_DELAY_SEC`, `ProofWindow.duration` |
 | Tolérance d'horloge | 120 s | `app.proof_clock_grace_seconds()`, `CLOCK_SKEW_TOLERANCE_SEC` |
+| Délai avant clôture d'une revue oubliée | 24 h | `app.review_window_hours()` |
 | Fenêtre de contestation | **0 h (retirée)** | `app.dispute_window_hours()` |
 
 **Le délai de soumission vit à trois endroits** (base, vérification, iOS) et

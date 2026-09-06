@@ -63,6 +63,15 @@ struct HomeView: View {
                     .padding(.bottom, Theme.Spacing.large)
                 }
                 .scrollIndicators(.hidden)
+                // Tirer vers le bas rafraichit, comme partout ailleurs.
+                // L'accueil ne se met pas a jour tout seul : une preuve
+                // verifiee pendant qu'on regarde l'ecran n'y apparait
+                // qu'apres un rechargement, et sans ce geste il faut
+                // quitter l'application pour l'obtenir.
+                .refreshable {
+                    await store.reload()
+                    await loadAccount()
+                }
             }
         }
         .task { await store.loadIfNeeded() }
