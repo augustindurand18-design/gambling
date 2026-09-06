@@ -33,7 +33,7 @@ réelles (RLS, triggers, permissions de schéma) n'étaient pas visibles à la
 lecture et n'ont été trouvées qu'en lançant le schéma contre une vraie base.
 
 ```bash
-supabase test db                                      # 104 tests
+supabase test db                                      # 110 tests
 deno test supabase/functions --allow-env --no-check   # 59 tests
 ./scripts/ios-test.sh                                 # 68 tests
 ```
@@ -162,9 +162,11 @@ Capture **uniquement via caméra intégrée à l'app** (pas d'upload galerie) ; 
 - **Objets orphelins dans le bucket.** Envoi du fichier réussi puis
   `submit_proof` refusée : l'objet reste, sans ligne qui le désigne et sans
   droit de suppression client. À traiter dans `purge-proofs`.
-- **`send-push` n'est pas planifiée.** L'appeler depuis Postgres demanderait
-  `net.http_post` avec une clé de service, or `[db.vault]` est commenté et le
-  dépôt est public. Invocation manuelle pour l'instant.
+- ~~**`send-push` n'est pas planifiée.**~~ Réglé par `0032` : le battement
+  appelle la fonction via `net.http_post`, avec l'URL et la **clé anon** lues
+  dans Vault (`edge_project_url`, `edge_anon_key`). Rien dans le dépôt. Tant
+  que les secrets ne sont pas posés, la livraison ne part pas — silencieusement
+  et sans erreur, c'est-à-dire exactement le comportement d'avant.
 
 ### À faire — hors code (bloquant à terme)
 - [ ] **Compte Stripe** (mode test) — bloque tout le paiement
