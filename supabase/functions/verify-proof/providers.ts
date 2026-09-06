@@ -136,7 +136,18 @@ async function callAnthropic(
  * qualité de vérification. Ne pas le laisser servir en production — le prompt
  * système est écrit et réglé pour Claude.
  */
-export function geminiProvider(apiKey: string, model = "gemini-2.5-flash"): VisionProvider {
+export function geminiProvider(
+  apiKey: string,
+  // Le palier le moins cher, et suffisant pour ce qu'on lui demande :
+  // verifier que la chaine tourne.
+  //
+  // `gemini-2.5-flash-lite` semblait le choix prudent — plus ancien, donc
+  // plus stable. Google le refuse aux comptes recents : « no longer available
+  // to new users ». Constate en appelant l'API, pas en lisant la
+  // documentation. `GEMINI_MODEL` permet d'en essayer un autre sans toucher
+  // au code, ce qui servira le jour ou celui-ci sera ferme a son tour.
+  model = "gemini-3.5-flash-lite",
+): VisionProvider {
   return {
     name: "gemini",
     async verdict(request: VisionRequest): Promise<VisionAnswer> {

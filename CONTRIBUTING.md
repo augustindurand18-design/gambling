@@ -191,7 +191,7 @@ Le fournisseur se choisit sur les variables présentes, dans cet ordre :
 | Variable | Fournisseur | Usage |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | Claude — Haiku, escalade Sonnet sur le doute | production |
-| `GEMINI_API_KEY` | Gemini | test uniquement |
+| `GEMINI_API_KEY` | Gemini — `gemini-3.5-flash-lite` par défaut | test uniquement |
 | aucune | — | chaque preuve part en revue humaine |
 
 L'ordre n'est pas négociable : une clé de test ne doit jamais détourner la
@@ -200,6 +200,15 @@ tout va en revue humaine. C'est coûteux et c'est voulu.
 
 ⚠️ Le prompt système est écrit et réglé pour Claude. Gemini sert à exercer la
 chaîne, pas à mesurer la qualité de vérification.
+
+`GEMINI_MODEL` permet d'en essayer un autre. Attention : Google ferme ses
+anciens modèles aux comptes récents — `gemini-2.5-flash-lite` répond
+« no longer available to new users » avec un 404. Si le défaut cesse de
+fonctionner, la liste des modèles ouverts à ta clé se demande ainsi :
+
+```bash
+curl -s "https://generativelanguage.googleapis.com/v1beta/models" -H "x-goog-api-key: $GEMINI_API_KEY" | grep '"name"'
+```
 
 ### Ce que les tests protègent
 
