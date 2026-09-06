@@ -83,8 +83,8 @@ Le premier lancement télécharge plusieurs images Docker. La commande affiche �
 la fin un bloc JSON contenant `ANON_KEY` — gardez-le sous la main.
 
 ```bash
-supabase db reset     # applique les 18 migrations + le seed
-supabase test db      # 24 tests pgTAP, doivent tous passer
+supabase db reset     # applique les 28 migrations + le seed
+supabase test db      # 87 tests pgTAP, doivent tous passer
 ```
 
 Interface d'administration : http://127.0.0.1:54323
@@ -137,9 +137,9 @@ changements de configuration relisibles en revue.
 ## 4. Tests
 
 ```bash
-supabase test db                                      # base : 85 tests
-deno test supabase/functions --allow-env --no-check   # fonctions : 36 tests
-./scripts/ios-test.sh                                 # iOS : 44 tests
+supabase test db                                      # base : 87 tests
+deno test supabase/functions --allow-env --no-check   # fonctions : 52 tests
+./scripts/ios-test.sh                                 # iOS : 56 tests
 ```
 
 `./scripts/db-reset.sh` enchaîne reset + tests.
@@ -176,6 +176,30 @@ Sans identifiants APNs — le cas aujourd'hui, faute de compte Apple Developer �
 elle journalise une commande `xcrun simctl push` prête à coller, qui exerce le
 routage dans l'application. Cela ne teste pas la livraison, seulement ce que
 l'app fait du message.
+
+### Vérifier une preuve
+
+`verify-proof` n'est pas planifiée non plus. Sans argument elle traite toute la
+file des preuves en attente ; avec `{"proof_id": "..."}` elle n'en traite qu'une.
+
+```bash
+supabase functions serve verify-proof --env-file supabase/.env
+```
+
+Le fournisseur se choisit sur les variables présentes, dans cet ordre :
+
+| Variable | Fournisseur | Usage |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | Claude — Haiku, escalade Sonnet sur le doute | production |
+| `GEMINI_API_KEY` | Gemini | test uniquement |
+| aucune | — | chaque preuve part en revue humaine |
+
+L'ordre n'est pas négociable : une clé de test ne doit jamais détourner la
+production de Claude. Et sans aucune clé, **on n'invente pas de verdict** —
+tout va en revue humaine. C'est coûteux et c'est voulu.
+
+⚠️ Le prompt système est écrit et réglé pour Claude. Gemini sert à exercer la
+chaîne, pas à mesurer la qualité de vérification.
 
 ### Ce que les tests protègent
 

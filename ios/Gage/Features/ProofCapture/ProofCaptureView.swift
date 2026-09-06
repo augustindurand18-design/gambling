@@ -213,11 +213,18 @@ struct ProofCaptureView: View {
             // la preuve, il ne la juge pas.
             let precheck = await ProofVisionAnalyzer.analyze(jpegData: jpeg)
 
+            // Sans EXIF, l'anti-triche serveur lève un signal et la preuve part
+            // en revue humaine. C'est le comportement voulu — une photo prise
+            // par un appareil en produit toujours — mais ça veut dire qu'un
+            // oubli ici coûte 0,20 à 0,50 € par preuve.
+            let exif = ProofExif.extract(from: jpeg)
+
             try await ProofsAPI.shared.submit(
                 goalID: pending.goalID,
                 jpegData: jpeg,
                 capturedAt: capturedAt,
-                precheck: precheck
+                precheck: precheck,
+                exif: exif
             )
 
             phase = .sent

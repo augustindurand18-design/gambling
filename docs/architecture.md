@@ -297,14 +297,14 @@ implémentées. État au dernier commit :
 
 | Composant | État |
 |---|---|
-| Schéma complet + RLS + machine à états | ✅ écrit, 85 tests pgTAP |
-| Anti-triche, prompts, routage | ✅ écrits, 36 tests Deno |
-| Modèles Swift + machine à états client | ✅ écrits, 44 tests |
+| Schéma complet + RLS + machine à états | ✅ écrit, 87 tests pgTAP |
+| Anti-triche, prompts, routage | ✅ écrits, 52 tests Deno |
+| Modèles Swift + machine à états client | ✅ écrits, 56 tests |
 | RPC `transition_goal` (`0020`) et `submit_proof` (`0026`) | ✅ écrites |
 | Planification et ouverture des fenêtres (`0027`, `pg_cron`) | ✅ écrites |
 | `send-push` (livraison seule) | ⚠️ écrite, **jamais exécutée contre Apple** |
 | Caméra `AVFoundation` + pré-filtre Vision + envoi | ✅ écrits |
-| `verify-proof` (fonction assemblée) | ⬜ à écrire — les briques existent |
+| `verify-proof` (fonction assemblée) | ✅ écrite — Claude en production, Gemini pour les essais |
 | `stripe-setup-intent`, `stripe-webhook`, `stripe-charge-stake` | ⬜ à écrire |
 | `dispute-intake`, `weekly-assiduity`, `purge-proofs` | ⬜ à écrire |
 | Le reste de l'interface iOS | ⬜ design Figma en cours |
@@ -321,6 +321,19 @@ Deux réserves sur ce qui est marqué écrit :
 - **Dette connue** : si l'envoi du fichier réussit mais que `submit_proof`
   refuse (délai écoulé), l'objet reste orphelin dans le bucket, et le client
   n'a pas le droit de le supprimer. `purge-proofs` devra les ramasser.
+
+**Un défaut trouvé en exécutant, pas en relisant** (2026-09-06) : ni
+`ProofsAPI` ni `submit_proof` ne transmettaient l'EXIF, donc `proofs.exif`
+restait toujours nul. Or `runAntiCheat` lève `exif_missing` en son absence — à
+raison — et `routeVerdict` envoie en revue humaine toute preuve portant le
+moindre signal. **Cent pour cent des preuves partaient donc en revue humaine**,
+à 0,20-0,50 € pièce, alors que §5 vise 85 % absorbés par l'IA : la vérification
+automatique ne servait à rien. Chaque pièce était pourtant correcte isolément.
+Réparé par la migration `0028` et `ProofExif.swift`, qui n'envoie qu'une liste
+blanche de champs — l'EXIF brut porte les coordonnées GPS du lieu de prise de
+vue, dont on n'a pas besoin — et normalise la date en UTC, faute de quoi le
+décalage horaire français lèverait `exif_date_mismatch` sur chaque preuve
+honnête.
 
 ---
 

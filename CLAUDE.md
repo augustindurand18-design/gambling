@@ -33,9 +33,9 @@ réelles (RLS, triggers, permissions de schéma) n'étaient pas visibles à la
 lecture et n'ont été trouvées qu'en lançant le schéma contre une vraie base.
 
 ```bash
-supabase test db                                      # 85 tests
-deno test supabase/functions --allow-env --no-check   # 36 tests
-./scripts/ios-test.sh                                 # 44 tests
+supabase test db                                      # 87 tests
+deno test supabase/functions --allow-env --no-check   # 52 tests
+./scripts/ios-test.sh                                 # 56 tests
 ```
 
 Pour observer la boucle de notification en local, il faut d'abord un moyen de
@@ -146,7 +146,7 @@ Capture **uniquement via caméra intégrée à l'app** (pas d'upload galerie) ; 
 - [x] **Planification et ouverture des fenêtres** (`0027`) : `app.tick_notifications()` sur pg_cron, toutes les minutes
 - [x] **`send-push`** — livraison seule, avec transport de repli. Jamais exécutée contre Apple (voir ci-dessous)
 - [x] **Caméra AVFoundation + pré-filtre Vision + envoi** (`Features/ProofCapture/`, `ProofsAPI`)
-- [ ] Edge Function `verify-proof` (assemblage — les briques existent)
+- [x] **Edge Function `verify-proof`** — anti-triche, modèle, routage, verdict. Claude en production (Haiku → escalade Sonnet), Gemini comme fournisseur de test
 - [ ] Edge Functions Stripe : `stripe-setup-intent`, `stripe-webhook`, `stripe-charge-stake`
 - [ ] `dispute-intake`, `weekly-assiduity`, `purge-proofs`
 - [ ] Le reste de l'interface iOS (dépend du design Figma)
@@ -168,7 +168,7 @@ Capture **uniquement via caméra intégrée à l'app** (pas d'upload galerie) ; 
 
 ### À faire — hors code (bloquant à terme)
 - [ ] **Compte Stripe** (mode test) — bloque tout le paiement
-- [ ] **Compte Apple Developer** — bloque TestFlight, push réels, Sign in with Apple sur appareil
+- [ ] **Compte Apple Developer** — type **Individual** (voir décision 2026-09-06). Titulaire : Augustin, Apple ID pro dédié + 2FA. Bloque TestFlight, push réels, Sign in with Apple sur appareil
 - [ ] Question écrite à Apple : la mécanique de mise est-elle du « real money gaming » ?
 - [ ] Consultation juridique (jeu d'argent / clause pénale / consentement débit / RGPD)
 - [ ] Design iOS (onboarding + écrans de consentement en priorité)
@@ -202,6 +202,12 @@ _(date + décision + raison)_
 - 2026-09-06 : **délai de soumission fixé à 15 min**, tolérance d'horloge de
   120 s accordée par `submit_proof` — refuser à la seconde près une preuve que
   l'anti-triche juge légitime serait l'invariant 2 à l'envers.
+- 2026-09-06 : **compte Apple Developer = Individual**, pas Organization. Raison :
+  l'Organization exige un numéro D-U-N-S (délai 1-2 semaines) qui ferait sauter
+  la cible bêta. Une seule cotisation 99 €/an couvre les 2 devs — le second est
+  ajouté dans App Store Connect (Users and Access) pour TestFlight ; le partage
+  de signature se fait via fastlane match, pas d'échange de `.p12`. Migration
+  vers Organization possible plus tard sans perdre l'app.
 - 2026-09-03 : **plafond par objectif porté de 30 € à 100 €** (roue de mise de 5 € à 100 €, pas de 5 €). S'applique aux nouveaux profils uniquement — migration `0019`. Le plafond mensuel reste à 150 €, à revoir : il n'autorise plus qu'une mise maximale par mois.
 
 ## Stack pressentie (en cours de décision — 2026-09-02)

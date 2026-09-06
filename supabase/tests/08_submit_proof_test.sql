@@ -13,7 +13,7 @@
 -- Execution : supabase test db
 
 begin;
-select plan(11);
+select plan(13);
 
 create extension if not exists pgtap with schema extensions;
 
@@ -71,8 +71,20 @@ select lives_ok(
   $$select public.submit_proof(
       'bbbb2222-0000-0000-0000-000000000001',
       'aaaa1111-0000-0000-0000-000000000001/bbbb2222-0000-0000-0000-000000000001/photo.jpg',
-      repeat('a', 64), 120000, now(), null, null, '{"passed": true}'::jsonb)$$,
+      repeat('a', 64), 120000, now(), null, null, '{"passed": true}'::jsonb,
+      '{"DateTimeOriginal": "2026:09:06 07:02:00", "Software": "18.0"}'::jsonb)$$,
   'Une preuve deposee dans les temps est acceptee'
+);
+
+-- Sans ce champ, runAntiCheat leve exif_missing sur CHAQUE preuve et
+-- routeVerdict envoie tout signal en revue humaine : 100 % des preuves
+-- passeraient par un humain a 0,20-0,50 € piece, et la verification
+-- automatique ne servirait a rien. Trouve en executant verify-proof.
+select is(
+  (select exif->>'Software' from public.proofs
+   where goal_id = 'bbbb2222-0000-0000-0000-000000000001'),
+  '18.0',
+  'L''EXIF declare par l''appareil est bien enregistre'
 );
 
 select is(
@@ -113,6 +125,16 @@ select lives_ok(
       'aaaa1111-0000-0000-0000-000000000001/bbbb2222-0000-0000-0000-000000000004/photo.jpg',
       repeat('d', 64), 120000, now(), null, null, '{}'::jsonb)$$,
   'Soixante secondes apres l''echeance, la preuve passe : l''anti-triche la juge legitime, la base ne la refuse pas'
+);
+
+-- Celle-ci est partie sans EXIF : elle doit s'enregistrer quand meme.
+-- L'absence est un signal que le serveur relevera, pas un motif de refus —
+-- l'extraction a pu echouer sur une photo parfaitement honnete.
+select is(
+  (select exif from public.proofs
+   where goal_id = 'bbbb2222-0000-0000-0000-000000000004'),
+  null,
+  'Une preuve sans EXIF s''enregistre quand meme : l''absence est un signal, pas un refus'
 );
 
 -- ------------------------------------------------------------- les refus

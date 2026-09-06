@@ -28,7 +28,8 @@ struct ProofsAPI: Sendable {
         goalID: UUID,
         jpegData: Data,
         capturedAt: Date,
-        precheck: ProofPrecheck
+        precheck: ProofPrecheck,
+        exif: ProofExif?
     ) async throws -> UUID {
         guard jpegData.count <= Self.maxBytes else {
             throw AppError.server(message: "La photo est trop lourde.")
@@ -68,7 +69,8 @@ struct ProofsAPI: Sendable {
                     imageSHA256: jpegData.sha256Hex,
                     imageBytes: jpegData.count,
                     capturedAt: capturedAt,
-                    precheck: precheck
+                    precheck: precheck,
+                    exif: exif
                 ))
                 .execute()
                 .value
@@ -111,6 +113,10 @@ private struct SubmitProofParams: Encodable {
     let imageBytes: Int
     let capturedAt: Date
     let precheck: ProofPrecheck
+    /// Nul quand l'extraction n'a rien donné. Le serveur lèvera alors son
+    /// signal `exif_missing` et la preuve partira en revue humaine — ce qui
+    /// est le comportement voulu, pas un contournement à ajouter ici.
+    let exif: ProofExif?
 
     enum CodingKeys: String, CodingKey {
         case goalID = "p_goal_id"
@@ -119,5 +125,6 @@ private struct SubmitProofParams: Encodable {
         case imageBytes = "p_image_bytes"
         case capturedAt = "p_captured_at"
         case precheck = "p_ondevice_precheck"
+        case exif = "p_exif"
     }
 }
