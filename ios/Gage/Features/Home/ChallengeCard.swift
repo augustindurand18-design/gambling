@@ -17,9 +17,7 @@ struct ChallengeCard: View {
 
                     Spacer(minLength: Theme.Spacing.small)
 
-                    Text(Money.format(cents: challenge.stakeCents))
-                        .font(Theme.Fonts.footnoteEmphasis)
-                        .foregroundStyle(Theme.Colors.ink)
+                    stake
                 }
 
                 Text(challenge.title)
@@ -57,6 +55,29 @@ struct ChallengeCard: View {
         .buttonStyle(.plain)
     }
 
+    /// Ce que la mise est devenue.
+    ///
+    /// Un objectif tenu n'affiche aucun montant : rien n'a ete preleve, et
+    /// montrer une somme la ou il ne s'est rien passe laisserait croire a une
+    /// perte. Une mise perdue s'affiche en rouge, precedee d'un moins — c'est
+    /// de l'argent qui est parti, l'ecran doit le dire comme un releve de
+    /// compte. Tant que rien n'est joue, le montant reste neutre : c'est ce
+    /// qui est en jeu, pas ce qui est perdu.
+    @ViewBuilder
+    private var stake: some View {
+        if challenge.state == .closedKept {
+            EmptyView()
+        } else if challenge.state.hasLostStake {
+            Text("−" + Money.format(cents: challenge.stakeCents))
+                .font(Theme.Fonts.footnoteEmphasis)
+                .foregroundStyle(Theme.Colors.failed)
+        } else {
+            Text(Money.format(cents: challenge.stakeCents))
+                .font(Theme.Fonts.footnoteEmphasis)
+                .foregroundStyle(Theme.Colors.ink)
+        }
+    }
+
     /// Echeance en clair. Un objectif dont la fenetre est deja ouverte se dit
     /// en temps restant ; les autres se disent a l'heure prevue.
     private static func deadlineText(_ deadline: Date) -> String {
@@ -89,9 +110,9 @@ struct StateBadge: View {
 
     private var tint: Color {
         switch state {
-        case .closedKept, .chargeOk, .validated:
+        case .closedKept, .validated:
             Theme.Colors.kept
-        case .closedFailed, .chargeFailed, .chargePending, .rejected:
+        case .closedFailed, .chargeOk, .chargeFailed, .chargePending, .rejected:
             Theme.Colors.failed
         case .proofWindowOpen:
             Theme.Colors.attention

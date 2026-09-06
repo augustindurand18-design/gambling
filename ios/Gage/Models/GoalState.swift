@@ -92,6 +92,18 @@ extension GoalState {
         }
     }
 
+    /// La mise a-t-elle ete perdue ?
+    ///
+    /// `chargeOk` en fait partie : un debit reussi est une reussite pour le
+    /// systeme, jamais pour l'utilisateur. Le confondre avec un objectif tenu
+    /// lui montrerait en vert le moment ou il a paye.
+    var hasLostStake: Bool {
+        switch self {
+        case .closedFailed, .chargePending, .chargeOk, .chargeFailed: true
+        default: false
+        }
+    }
+
     /// Libelle destine a l'utilisateur.
     var localizedLabel: String {
         switch self {
