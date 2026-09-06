@@ -85,6 +85,12 @@ targets:
         product: Supabase
       - package: StripePaymentSheet
         product: StripePaymentSheet
+      # `STPAPIClient`, ou se pose la cle publiable, vit dans StripePayments.
+      # StripeCore, qui porte l'equivalent moderne, n'est PAS un produit
+      # publie par stripe-ios — seulement une cible interne : le declarer ici
+      # fait echouer la resolution des paquets.
+      - package: StripePaymentSheet
+        product: StripePayments
       - package: Sentry
         product: Sentry
       - package: TelemetryDeck

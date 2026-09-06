@@ -222,13 +222,14 @@ extension GoalsAPI {
     /// a la RPC `commit_goal`, qui exige un moyen de paiement enregistre —
     /// donc le branchement Stripe, qui n'existe pas encore.
     ///
-    /// - Returns: le nombre d'objectifs ecrits.
+    /// - Returns: les objectifs ecrits, dans l'ordre des seances promises.
+    ///   Leurs identifiants servent a les engager un par un via `commit_goal`.
     @discardableResult
     func createGoals(
         plan: GoalPlan,
         reference: Date = .now,
         calendar: Calendar = .gage
-    ) async throws -> Int {
+    ) async throws -> [CreatedGoal] {
         guard plan.variant != nil else { throw AppError.server(message: "Objectif incomplet.") }
 
         let userID: UUID
@@ -256,16 +257,36 @@ extension GoalsAPI {
 
         guard !rows.isEmpty else { throw AppError.server(message: "Aucun jour choisi.") }
 
+        let created: [CreatedGoal]
         do {
-            try await client.from("goals").insert(rows).execute()
+            // `select` apres l'insertion : sans les identifiants rendus, on ne
+            // saurait pas quels objectifs engager ensuite.
+            created = try await client
+                .from("goals")
+                .insert(rows)
+                .select("id,target_date")
+                .execute()
+                .value
         } catch {
             Log.goal.error("Création d'objectifs: \(error.localizedDescription, privacy: .public)")
             if error is URLError { throw AppError.network }
             throw AppError.server(message: "Impossible d'enregistrer ton objectif.")
         }
 
-        Log.goal.debug("Objectifs créés : \(rows.count, privacy: .public)")
-        return rows.count
+        Log.goal.debug("Objectifs créés : \(created.count, privacy: .public)")
+        return created
+    }
+}
+
+/// Objectif tout juste cree, encore en brouillon.
+struct CreatedGoal: Decodable, Identifiable, Sendable {
+    let id: UUID
+    /// Jour vise, « 2026-09-10 ». Sert au libelle du consentement.
+    let targetDate: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case targetDate = "target_date"
     }
 }
 

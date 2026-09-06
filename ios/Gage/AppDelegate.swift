@@ -1,3 +1,4 @@
+import StripePayments
 import UIKit
 import UserNotifications
 
@@ -13,6 +14,17 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
+
+        // La cle publiable ne sait rien faire d'autre que presenter un
+        // formulaire de carte : elle est publique par conception, comme la cle
+        // anon de Supabase. Le debit, lui, passe par la cle secrete cote
+        // serveur, qui n'existe nulle part dans ce binaire.
+        if let key = AppConfig.stripePublishableKey {
+            STPAPIClient.shared.publishableKey = key
+        } else {
+            Log.payment.error("Cle publiable Stripe absente : le formulaire de carte ne s'ouvrira pas")
+        }
+
         return true
     }
 
