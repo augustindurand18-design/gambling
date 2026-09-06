@@ -43,11 +43,18 @@ export interface AntiCheatResult {
   hardReject: { reason: string } | null;
 }
 
-/** Au-delà de cet écart, la photo n'a manifestement pas été prise à l'instant demandé. */
-const MAX_CAPTURE_DELAY_SEC = 15 * 60;
+/**
+ * Au-delà de cet écart, la photo n'a manifestement pas été prise à l'instant demandé.
+ *
+ * Exportée parce que la même durée vit à trois endroits — ici,
+ * `app.proof_window_seconds()` côté base et `ProofWindow.duration` côté iOS —
+ * et qu'aucune vérification automatique ne détecte une dérive entre les trois.
+ * Un test l'assène de chaque côté.
+ */
+export const MAX_CAPTURE_DELAY_SEC = 15 * 60;
 
-/** Tolérance d'horloge entre l'appareil et le serveur. */
-const CLOCK_SKEW_TOLERANCE_SEC = 120;
+/** Tolérance d'horloge entre l'appareil et le serveur. Miroir de `app.proof_clock_grace_seconds()`. */
+export const CLOCK_SKEW_TOLERANCE_SEC = 120;
 
 export function runAntiCheat(input: AntiCheatInput): AntiCheatResult {
   const flags: string[] = [];

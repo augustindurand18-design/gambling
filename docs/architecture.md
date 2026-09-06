@@ -134,8 +134,8 @@ draft ──► committed ──► proof_window_open ──► proof_submitted 
 |---|---|
 | `draft` | l'utilisateur, via un `INSERT` direct (RLS l'autorise) |
 | `committed` | la RPC `commit_goal` — jamais un `UPDATE` direct |
-| `proof_window_open` | la fonction `send-push`, au moment où elle envoie la notification |
-| `proof_submitted` | l'app, après upload de la photo |
+| `proof_window_open` | `app.open_due_proof_windows()`, appelée par le cron — **pas** `send-push` |
+| `proof_submitted` | la RPC `submit_proof`, après upload de la photo |
 | `ai_verifying` | la fonction `verify-proof` |
 | `validated` / `rejected` / `human_review` | `verify-proof`, selon le routage |
 | `closed_kept` / `closed_failed` | `verify-proof`, `close-expired`, ou un reviewer humain |
@@ -144,6 +144,35 @@ draft ──► committed ──► proof_window_open ──► proof_submitted 
 
 **Les deux états terminaux** sont `closed_kept` et `charge_ok`. Un objectif en
 `charge_failed` n'est pas terminal : une relance Stripe peut le débloquer.
+
+### Pourquoi la notification n'ouvre pas la fenêtre
+
+Ce tableau disait, jusqu'à la migration `0027`, que `proof_window_open` était
+déclenché par `send-push` « au moment où elle envoie la notification ». C'était
+mettre la livraison APNs sur le chemin critique de l'argent : une panne d'Apple,
+un jeton révoqué, une variable d'environnement absente, et la fenêtre ne
+s'ouvrait jamais — donc l'utilisateur ne pouvait pas soumettre, donc l'échéance
+passait, donc il était débité. Un incident d'infrastructure serait devenu un
+débit, ce qu'interdit l'invariant §2.2.
+
+L'ouverture appartient donc à la base, qui fait déjà autorité sur le cycle de
+vie (§2.1). `pg_cron` appelle `app.tick_notifications()` chaque minute, qui
+planifie, ouvre, puis clôt. `send-push` ne fait plus que livrer : **son échec
+n'a aucun effet sur l'état d'un objectif**. Effet de bord appréciable, toute la
+chaîne devient vérifiable en local sans compte Apple Developer.
+
+Une conséquence à connaître : `app.open_due_proof_windows()` refuse d'ouvrir
+une fenêtre pour un utilisateur qui n'a **aucun appareil non révoqué**. Sans
+cela, le compte à rebours de quinze minutes partirait dans le vide et
+l'utilisateur perdrait sa mise sans avoir rien su.
+
+**Un manque assumé** : quand une fenêtre n'a jamais pu s'ouvrir alors que le
+jour est passé, l'objectif reste `committed` et sa mise reste `active`.
+`app.close_expired_goals()` se contente de le signaler dans
+`notification_schedule.last_error`. `0015` autorise bien `committed → rejected`
+comme filet de sécurité, mais s'en servir reviendrait à débiter quelqu'un pour
+notre panne. La sortie honnête serait `committed → human_review`, qui n'existe
+ni dans `0015` ni dans `GoalStateMachine.swift`.
 
 ---
 
@@ -268,20 +297,30 @@ implémentées. État au dernier commit :
 
 | Composant | État |
 |---|---|
-| Schéma complet + RLS + machine à états | ✅ écrit, 24 tests pgTAP |
-| Anti-triche, prompts, routage | ✅ écrits, 21 tests Deno |
-| Modèles Swift + machine à états client | ✅ écrits, 19 tests |
+| Schéma complet + RLS + machine à états | ✅ écrit, 85 tests pgTAP |
+| Anti-triche, prompts, routage | ✅ écrits, 36 tests Deno |
+| Modèles Swift + machine à états client | ✅ écrits, 44 tests |
+| RPC `transition_goal` (`0020`) et `submit_proof` (`0026`) | ✅ écrites |
+| Planification et ouverture des fenêtres (`0027`, `pg_cron`) | ✅ écrites |
+| `send-push` (livraison seule) | ⚠️ écrite, **jamais exécutée contre Apple** |
+| Caméra `AVFoundation` + pré-filtre Vision + envoi | ✅ écrits |
 | `verify-proof` (fonction assemblée) | ⬜ à écrire — les briques existent |
 | `stripe-setup-intent`, `stripe-webhook`, `stripe-charge-stake` | ⬜ à écrire |
-| `schedule-notifications`, `send-push`, `close-expired` | ⬜ à écrire |
 | `dispute-intake`, `weekly-assiduity`, `purge-proofs` | ⬜ à écrire |
-| RPC `transition_goal` (appelée par `db.ts`) | ⬜ à écrire |
-| Toute l'interface iOS | ⬜ design Figma en cours |
-| Caméra `AVFoundation` | ⬜ à écrire |
+| Le reste de l'interface iOS | ⬜ design Figma en cours |
 
-Attention : [`db.ts`](../supabase/functions/_shared/db.ts) appelle une RPC
-`transition_goal` qui **n'existe pas encore en migration**. C'est une dette
-connue, à créer avant la première Edge Function qui l'utilise.
+Deux réserves sur ce qui est marqué écrit :
+
+- **`send-push` n'a jamais tourné contre Apple.** Sans compte Apple Developer,
+  ni clé `.p8` ni identifiants n'existent, et l'entitlement `aps-environment`
+  n'est pas attaché à la cible (voir le commentaire dans `ios/project.yml`).
+  La signature ES256, le cache du jeton et le traitement des codes d'erreur
+  sont écrits d'après la documentation et testés unitairement. Un transport de
+  repli journalise une commande `xcrun simctl push` prête à coller, ce qui
+  exerce le routage dans l'application — pas la livraison.
+- **Dette connue** : si l'envoi du fichier réussit mais que `submit_proof`
+  refuse (délai écoulé), l'objet reste orphelin dans le bucket, et le client
+  n'a pas le droit de le supprimer. `purge-proofs` devra les ramasser.
 
 ---
 

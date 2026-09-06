@@ -137,12 +137,45 @@ changements de configuration relisibles en revue.
 ## 4. Tests
 
 ```bash
-supabase test db                                      # base : 24 tests
-deno test supabase/functions --allow-env --no-check   # fonctions : 21 tests
-./scripts/ios-test.sh                                 # iOS : 19 tests
+supabase test db                                      # base : 85 tests
+deno test supabase/functions --allow-env --no-check   # fonctions : 36 tests
+./scripts/ios-test.sh                                 # iOS : 44 tests
 ```
 
 `./scripts/db-reset.sh` enchaîne reset + tests.
+
+### Exercer la boucle de notification en local
+
+Un `db reset` laisse une base sans compte. Une fois connecté depuis
+l'application :
+
+```bash
+./scripts/dev-moyen-paiement.sh
+```
+
+`commit_goal` refuse d'engager un objectif sans moyen de paiement — Stripe
+n'est pas branché — et `app.open_due_proof_windows()` refuse d'ouvrir une
+fenêtre pour quelqu'un sans appareil joignable. Ce script pose les deux, en
+local uniquement.
+
+Le cron `gage-tick` tourne ensuite toutes les minutes : planification,
+ouverture, clôture. Pour voir où en est un objectif :
+
+```bash
+docker exec -i supabase_db_nouveau_SaaS psql -U postgres -c "select g.title, g.state, n.fire_at, n.sent_at, n.last_error from goals g left join notification_schedule n on n.goal_id = g.id order by g.created_at desc limit 10;"
+```
+
+`send-push` n'est pas planifiée : l'appeler depuis Postgres demanderait une clé
+de service dans une migration, et le dépôt est public. On l'invoque à la main.
+
+```bash
+supabase functions serve send-push --env-file supabase/.env
+```
+
+Sans identifiants APNs — le cas aujourd'hui, faute de compte Apple Developer —
+elle journalise une commande `xcrun simctl push` prête à coller, qui exerce le
+routage dans l'application. Cela ne teste pas la livraison, seulement ce que
+l'app fait du message.
 
 ### Ce que les tests protègent
 

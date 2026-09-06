@@ -12,6 +12,8 @@ struct HomeView: View {
     @State private var isShowingProfile = false
     /// Defi dont la fiche est ouverte.
     @State private var openedChallenge: ChallengeSummary?
+    /// Boite aux lettres entre la notification et l'ecran de capture.
+    private let router = ProofRouter.shared
 
     init(store: HomeStore = HomeStore()) {
         _store = State(wrappedValue: store)
@@ -66,6 +68,21 @@ struct HomeView: View {
         }
         .sheet(item: $openedChallenge) { challenge in
             ChallengeDetailView(challenge: challenge)
+        }
+        // Une demande de preuve passe devant tout le reste : la fenetre dure
+        // quinze minutes, et l'utilisateur vient de toucher la notification
+        // pour ca. `fullScreenCover` et non `sheet` — un ecran qu'on peut
+        // faire glisser par megarde n'est pas un ecran ou de l'argent est en jeu.
+        .fullScreenCover(item: Binding(
+            get: { router.pendingGoal },
+            set: { if $0 == nil { router.clear() } }
+        )) { pending in
+            ProofCaptureView(pending: pending) {
+                router.clear()
+                // Le defi a change d'etat cote serveur : l'accueil doit le
+                // montrer, pas afficher l'etat d'avant.
+                Task { await store.reload() }
+            }
         }
     }
 
