@@ -172,10 +172,68 @@ Capture **uniquement via caméra intégrée à l'app** (pas d'upload galerie) ; 
 - [ ] Question écrite à Apple : la mécanique de mise est-elle du « real money gaming » ?
 - [ ] Consultation juridique (jeu d'argent / clause pénale / consentement débit / RGPD)
 - [ ] Design iOS (onboarding + écrans de consentement en priorité)
-- [ ] Projet Supabase cloud région Francfort (local uniquement pour l'instant)
+- [x] Projet Supabase distant (voir « La base distante » ci-dessous)
+
+## La base distante — on ne travaille plus en local (2026-09-06)
+
+**Le développement se fait désormais contre le projet Supabase distant.** La
+pile locale n'est plus la référence : elle peut servir à essayer une migration
+avant de la pousser, jamais à valider que l'app marche.
+
+| | |
+|---|---|
+| Projet | **Objectify**, ref `gdqzpjlexyvtamrtergk` |
+| Organisation | celle du collaborateur (Jules) |
+| Région | **eu-west-1 (Irlande)** — pas Francfort, contrairement à la décision du 2026-09-02 |
+| URL | `https://gdqzpjlexyvtamrtergk.supabase.co` |
+
+`ios/Config/Secrets.xcconfig` pointe dessus. Ce fichier est **gitignoré** :
+chacun renseigne le sien, la clé anon n'entre jamais dans le dépôt public.
+
+**La base est partagée avec un collaborateur.** Trois conséquences :
+
+1. **Prévenir avant de pousser.** Deux `db push` simultanés se marchent dessus,
+   et l'ordre d'application n'est plus garanti.
+2. **Vérifier l'historique avant d'écrire** : `supabase migration list --linked`.
+   Une migration distante sans fichier local signale que quelqu'un a poussé
+   autrement — c'est arrivé le 2026-09-05, où `0025` avait été appliquée sous
+   un numéro horodaté et faisait croire à une divergence de schéma.
+3. **Ne jamais modifier une migration déjà poussée**, la règle vaut d'autant
+   plus qu'un autre l'a peut-être déjà appliquée.
+
+**Ce qui n'est pas encore sur le distant** : aucune Edge Function déployée
+(`functions list` renvoie vide), donc ni `stripe-setup-intent`, ni
+`stripe-charge-stake`, ni `verify-proof`, ni `send-push`, ni `stripe-webhook`.
+Tout ce qui en dépend échoue côté app avec un message générique.
+
+**Les secrets ne se déduisent pas de `supabase/.env`**, qui ne vaut que pour le
+local. Sur le distant, `SUPABASE_URL`, `SUPABASE_ANON_KEY` et
+`SUPABASE_SERVICE_ROLE_KEY` sont injectées automatiquement — Supabase refuse
+qu'on les pose. Restent à définir : `STRIPE_SECRET_KEY`,
+`STRIPE_WEBHOOK_SECRET` et la clé du fournisseur de vision pour `verify-proof`.
+Le secret de webhook du `.env` vient de `stripe listen` et **ne vaut rien pour
+un endpoint distant** : il faut celui de l'endpoint déclaré dans Stripe.
+
+**`stripe-webhook` se déploie avec `--no-verify-jwt`.** Stripe l'appelle sans
+jeton Supabase ; sans ce drapeau, chaque notification part en 401. Aucune
+section `[functions]` dans `config.toml` ne le fait à notre place.
+
+**L'auth par e-mail dépend de réglages qui ne sont pas dans le dépôt.**
+`config.toml` (SMTP Resend, `otp_length = 6`, gabarits `{{ .Token }}`) ne
+configure que le local ; le distant se règle par `supabase config push` ou à la
+main dans le Dashboard. Un projet hébergé ne lit pas les `content_path`
+locaux : si le code à six chiffres est remplacé par un lien, c'est là qu'il
+faut regarder. Et un envoi vers une adresse inexistante met celle-ci sur la
+**liste de suppression de Resend** — tout envoi ultérieur vers elle est
+abandonné en silence, même après correction.
 
 ## Décisions
 _(date + décision + raison)_
+- 2026-09-06 : **on développe contre la base distante**, plus en local. Le
+  projet est `gdqzpjlexyvtamrtergk` (Objectify), en **eu-west-1 (Irlande)** et
+  non à Francfort comme décidé le 2026-09-02 : la région effective contredit la
+  décision écrite, à trancher avant la bêta. La base est **partagée avec le
+  collaborateur** — voir « La base distante » pour ce que ça impose.
 - 2026-09-01 : contraintes projet + 2 filtres (pulsion primaire, boucle virale) + anti-pattern "plateforme d'attention".
 - 2026-09-02 : **idée verrouillée** (commitment device avec preuve IA + argent en jeu).
 - 2026-09-02 : abonnement 25 €→5 € formulé en **remise d'assiduité**, pas en pénalité.
@@ -212,7 +270,7 @@ _(date + décision + raison)_
 
 ## Stack pressentie (en cours de décision — 2026-09-02)
 - **iOS** : Swift + SwiftUI (iOS 17+). Natif obligatoire à cause de FamilyControls/DeviceActivity (Screen Time), CoreLocation (géofence), AVFoundation (caméra in-app anti-triche), StoreKit 2.
-- **Backend** : Supabase (Postgres + Auth + Storage + Edge Functions TS/Deno), **région UE (Frankfurt)**, pg_cron pour les jobs hebdo.
+- **Backend** : Supabase (Postgres + Auth + Storage + Edge Functions TS/Deno), pg_cron pour les jobs hebdo. Région décidée : Francfort ; **région réellement en service : eu-west-1 (Irlande)** — voir « La base distante ».
 - **IA vérification** : Claude vision (Haiku 1er passage → Sonnet en escalade) via Edge Function (clé API côté serveur) ; Apple Vision on-device en pré-filtre gratuit.
 - **Paiement** : **abo = Apple IAP via StoreKit 2 + RevenueCat** (reçus/entitlements). **Mises = Stripe** (PaymentSheet native + Apple Pay, SetupIntent pour stocker la carte, PaymentIntent off-session au moment de l'échec).
 - **Notifications** : APNs planifiées **côté serveur** (heure aléatoire non prédictible).
