@@ -14,14 +14,10 @@ settings:
     CURRENT_PROJECT_VERSION: "1"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     SWIFT_STRICT_CONCURRENCY: complete
-    # Aucun compte Apple Developer pour l'instant. On signe quand meme, en
-    # ad-hoc local ("-") : sans signature, le trousseau refuse d'ecrire et
-    # la session Supabase ne survit pas au premier appel — l'utilisateur
-    # semble connecte, puis toute requete repart en anonyme.
-    # L'ad-hoc ne demande ni compte ni equipe et suffit au simulateur.
+    # Il faut une signature, meme sur simulateur : sans elle le trousseau
+    # refuse d'ecrire et la session Supabase ne survit pas au premier appel —
+    # l'utilisateur semble connecte, puis toute requete repart en anonyme.
     CODE_SIGNING_ALLOWED: YES
-    CODE_SIGNING_REQUIRED: NO
-    CODE_SIGN_IDENTITY: "-"
 
 configs:
   Debug: debug
@@ -77,21 +73,18 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.augustindurand.gage
         PRODUCT_NAME: Gage
-    # Entitlements desactives tant qu'il n'y a pas de compte Apple Developer :
-    # aps-environment, Sign in with Apple et Apple Pay exigent un profil de
-    # provisioning. Les activer avant que le compte ne fonctionne casserait la
-    # compilation sur appareil pour tout le monde, y compris pour ceux dont la
-    # signature marche : le profil doit d'abord contenir l'identifiant marchand.
-    #
-    # Le jour ou le compte marche, dans l'ordre : creer l'identifiant marchand
-    # `merchant.com.augustindurand.gage` sur developer.apple.com, l'associer au
-    # compte Stripe, puis decommenter la ligne ci-dessous.
-    #
-    #   entitlements:
-    #     path: Gage/Gage.entitlements
-    #
-    # Le simulateur n'a besoin d'aucune signature. A reactiver le jour de
-    # l'inscription au programme (voir Gage.entitlements, deja pret).
+        # Signature automatique, equipe lue dans Config/Secrets.xcconfig (non
+        # versionne) : chacun signe avec la sienne. Sur simulateur la valeur
+        # peut rester vide, Xcode signe alors en ad-hoc tout seul.
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: $(DEVELOPMENT_TEAM)
+    # `aps-environment` seul. Sign in with Apple n'est pas utilise (l'auth
+    # passe par un code e-mail) et l'identifiant marchand Apple Pay
+    # `merchant.com.augustindurand.gage` n'existe pas encore sur
+    # developer.apple.com : le declarer ici ferait echouer la signature.
+    # Les deux cles restent a remettre le jour venu, voir Gage.entitlements.
+    entitlements:
+      path: Gage/Gage.entitlements
     dependencies:
       - package: Supabase
         product: Supabase
