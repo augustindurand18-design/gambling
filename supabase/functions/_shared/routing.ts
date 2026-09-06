@@ -72,15 +72,30 @@ export function routeVerdict(input: RoutingInput): RoutingDecision {
   const { verdict, antiCheat } = input;
 
   /**
-   * Escalade vers un humain, ou validation si ce poste n'est pas tenu.
+   * Escalade vers un humain, ou décision automatique si ce poste n'est
+   * pas tenu.
    *
-   * Le motif est conservé tel quel dans les deux cas : c'est lui qui dira,
-   * plus tard, ce qui aurait dû être relu et ne l'a pas été.
+   * Sans relecteur, on **suit le modèle** : il a regardé l'image, et
+   * l'ignorer reviendrait à valider une photo dont il vient de dire qu'elle
+   * ne montre pas la promesse. C'est exactement ce qui s'est produit le
+   * 2026-09-06 — une photo d'ordinateur validée pour une séance de sport,
+   * parce que l'EXIF manquant escaladait avant que le verdict soit lu.
+   *
+   * Un doute — modèle incertain, indisponible, peu sûr de lui — reste
+   * tranché en faveur de l'utilisateur : l'invariant 2 interdit de débiter
+   * sur un doute. Mais un « non » franc du modèle n'est pas un doute.
+   *
+   * Le motif garde la trace de ce qui aurait dû être relu.
    */
-  const escalate = (reason: string): RoutingDecision =>
-    config.humanReviewEnabled
-      ? { route: "human_review", reason }
-      : { route: "validated", reason: `no_review:${reason}` };
+  const escalate = (reason: string): RoutingDecision => {
+    if (config.humanReviewEnabled) {
+      return { route: "human_review", reason };
+    }
+    if (verdict.verdict === "fail" && verdict.confidence >= config.confidenceThreshold) {
+      return { route: "rejected", reason: `no_review:${reason}` };
+    }
+    return { route: "validated", reason: `no_review:${reason}` };
+  };
 
   // Fraude établie par construction : preuve hors fenêtre, image déjà
   // utilisée. Aucun jugement d'image n'est nécessaire.

@@ -218,9 +218,9 @@ Deno.test("sans revue humaine, un doute est valide et non rejete", () => {
   // ne fait qu'annoncer le meme resultat tout de suite.
   for (
     const verdict of [
-      { ...FAIL, spoof_suspected: true },
       { verdict: "uncertain" as const, confidence: 0.9, reason: "?", spoof_suspected: false },
       { ...FAIL, confidence: 0.5 },
+      { ...PASS, confidence: 0.5 },
     ]
   ) {
     const decision = routeVerdict({
@@ -231,6 +231,44 @@ Deno.test("sans revue humaine, un doute est valide et non rejete", () => {
     });
     assertEquals(decision.route, "validated");
   }
+});
+
+Deno.test("sans revue humaine, un « non » franc du modele rejette", () => {
+  // Le defaut du 2026-09-06 : l'escalade validait aveuglement, si bien qu'une
+  // photo d'ordinateur passait pour une seance de sport — l'EXIF manquant
+  // escaladait avant meme que le verdict du modele soit lu. Un modele sur de
+  // lui n'est pas un doute, et l'ignorer revient a n'avoir aucune
+  // verification.
+  const flagged = runAntiCheat(input({ exif: null }));
+  const decision = routeVerdict({
+    verdict: FAIL, // confiance haute
+    antiCheat: flagged,
+    stakeAmountCents: 500,
+    random: never,
+  });
+  assertEquals(decision.route, "rejected");
+  assertEquals(decision.reason, "no_review:anticheat_flags:exif_missing");
+});
+
+Deno.test("sans revue humaine, une fraude soupconnee suit le modele", () => {
+  // Accuser a tort reste le pire resultat : la suspicion seule ne rejette
+  // pas. Mais quand le modele dit non par ailleurs, c'est son avis qui
+  // tranche, pas la suspicion.
+  const doubtful = routeVerdict({
+    verdict: { ...PASS, spoof_suspected: true },
+    antiCheat: CLEAN,
+    stakeAmountCents: 500,
+    random: never,
+  });
+  assertEquals(doubtful.route, "validated");
+
+  const refused = routeVerdict({
+    verdict: { ...FAIL, spoof_suspected: true },
+    antiCheat: CLEAN,
+    stakeAmountCents: 500,
+    random: never,
+  });
+  assertEquals(refused.route, "rejected");
 });
 
 Deno.test("le motif dit ce qui aurait du etre relu", () => {

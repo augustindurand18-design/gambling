@@ -34,7 +34,7 @@ lecture et n'ont été trouvées qu'en lançant le schéma contre une vraie base
 
 ```bash
 supabase test db                                      # 122 tests
-deno test supabase/functions --allow-env --no-check   # 64 tests
+deno test supabase/functions --allow-env --no-check   # 66 tests
 ./scripts/ios-test.sh                                 # 68 tests
 ```
 
@@ -274,6 +274,14 @@ _(date + décision + raison)_
   confiance sous 0,8 et l'échantillon aléatoire de 5 %. À réexaminer avant la
   bêta : c'est la garde qui empêchait l'IA de trancher seule jusqu'au plafond
   de 100 €.
+- 2026-09-06 : **sans relecteur, le routage suit le modèle.** Première
+  version : tout ce qui partait en revue était validé — y compris quand le
+  modèle avait dit non, puisque l'EXIF manquant ou une confiance faible
+  escaladent **avant** que le verdict soit lu. Une photo d'ordinateur est
+  ainsi passée pour une séance de sport. Désormais un « non » franc du modèle
+  (verdict `fail` et confiance au-dessus du seuil) rejette ; seuls les doutes
+  — incertain, indisponible, peu sûr — restent tranchés en faveur de
+  l'utilisateur.
 - 2026-09-06 : **la revue humaine est fermée** (`humanReviewEnabled: false`).
   Tout ce qui y partait est désormais **validé** — falsification soupçonnée,
   modèle incertain, confiance faible, signal d'anti-triche. Le sens découle de
