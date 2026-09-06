@@ -208,14 +208,26 @@ struct GoalStateMachineTests {
         #expect(!GoalState.draft.hasMoneyAtRisk)
         #expect(GoalState.committed.hasMoneyAtRisk)
         #expect(GoalState.chargeFailed.hasMoneyAtRisk)
+        // Un refus quitte l'accueil sans que la mise soit reglee pour autant.
+        #expect(GoalState.rejected.hasMoneyAtRisk)
         #expect(!GoalState.closedKept.hasMoneyAtRisk)
         #expect(!GoalState.chargeOk.hasMoneyAtRisk)
+    }
+
+    /// Un objectif refuse doit rejoindre l'historique : il n'attend plus rien,
+    /// et le laisser sur l'accueil promettait un geste qui n'existe plus.
+    @Test("Un refus appartient a l'historique, pas a l'accueil")
+    func rejectedBelongsToHistory() {
+        #expect(!GoalState.rejected.isActive)
+        #expect(GoalState.rejected.isPast)
+        #expect(GoalState.humanReview.isActive)
     }
 
     @Test("Les etats en attente d'action utilisateur sont correctement identifies")
     func userActionStates() {
         #expect(GoalState.proofWindowOpen.awaitsUserAction)
-        #expect(GoalState.rejected.awaitsUserAction)
+        // Un refus n'attend plus rien : la contestation a ete retiree (0036).
+        #expect(!GoalState.rejected.awaitsUserAction)
         #expect(!GoalState.aiVerifying.awaitsUserAction)
         #expect(!GoalState.closedKept.awaitsUserAction)
     }

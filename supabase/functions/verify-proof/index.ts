@@ -23,8 +23,16 @@ import { routeVerdict } from "../_shared/routing.ts";
 import { checkImage, unavailableVerdict } from "./policy.ts";
 import { selectProvider, type VisionAnswer } from "./providers.ts";
 
-/** Fenêtre de contestation, miroir de `app.dispute_window_hours()`. */
-const DISPUTE_WINDOW_HOURS = 48;
+/**
+ * Fenêtre de contestation, miroir de `app.dispute_window_hours()`.
+ *
+ * Zéro depuis `0036` : le débit suit le verdict. La valeur doit rester
+ * alignée sur celle de la base, et pas seulement par cohérence d'affichage —
+ * `app.close_expired_goals()` ne clôt un objectif refusé qu'une fois cette
+ * échéance passée. Une constante restée à 48 laissait le refus sur l'accueil
+ * deux jours durant, mise ni libérée ni prélevée.
+ */
+const DISPUTE_WINDOW_HOURS = 0;
 
 /** Une preuve trop vieille n'est plus à vérifier automatiquement. */
 const MAX_AGE_HOURS = 72;

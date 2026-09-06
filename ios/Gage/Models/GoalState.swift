@@ -27,7 +27,8 @@ enum GoalState: String, Codable, CaseIterable, Sendable {
     /// Verdict favorable.
     case validated
 
-    /// Verdict defavorable. Contestable jusqu'a `disputeDeadlineAt`.
+    /// Verdict defavorable. Plus rien ne s'y oppose depuis le retrait de la
+    /// fenetre de contestation (`0036`) : la cloture et le debit suivent.
     case rejected
 
     /// En file de revue manuelle (verdict incertain, contestation, ou
@@ -61,10 +62,16 @@ extension GoalState {
     }
 
     /// L'objectif est-il encore en cours de resolution ?
+    ///
+    /// `rejected` n'en est plus : depuis le retrait de la contestation
+    /// (`0036`), un refus est un verdict acquis que le battement suivant ne
+    /// fait que consigner. Le garder « en cours » laissait la carte sur
+    /// l'accueil, bordee comme si un geste etait attendu, alors qu'aucun
+    /// n'existe plus.
     var isActive: Bool {
         switch self {
         case .committed, .proofWindowOpen, .proofSubmitted, .aiVerifying,
-             .validated, .rejected, .humanReview:
+             .validated, .humanReview:
             true
         default:
             false
@@ -81,13 +88,17 @@ extension GoalState {
 
     /// L'utilisateur a-t-il de l'argent engage a cet instant ?
     var hasMoneyAtRisk: Bool {
-        isActive || self == .closedFailed || self == .chargePending || self == .chargeFailed
+        isActive || self == .rejected || self == .closedFailed
+            || self == .chargePending || self == .chargeFailed
     }
 
     /// L'utilisateur peut-il agir maintenant ?
+    ///
+    /// Un refus n'attend plus rien de lui : la contestation a ete retiree, et
+    /// promettre un geste par un contour d'alerte serait mentir.
     var awaitsUserAction: Bool {
         switch self {
-        case .proofWindowOpen, .rejected: true
+        case .proofWindowOpen: true
         default: false
         }
     }
