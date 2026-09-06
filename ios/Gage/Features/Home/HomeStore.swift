@@ -31,6 +31,15 @@ final class HomeStore {
         }
     }
 
+    /// Vide ce qui a ete charge, sans rien recharger.
+    ///
+    /// Appele a la deconnexion : le magasin survit desormais a la session,
+    /// et laisser les defis d'un compte en memoire les montrerait au suivant
+    /// le temps d'un chargement.
+    func reset() {
+        state = .loading
+    }
+
     func reload() async {
         #if DEBUG
         if SessionStore.isUITesting {
