@@ -204,4 +204,29 @@ private struct CommitGoalParams: Encodable {
         case payload = "p_consent_payload"
         case appVersion = "p_app_version"
     }
+
+    /// Encodage ecrit a la main pour une seule raison : `p_charity_id` n'a pas
+    /// de valeur par defaut cote SQL, il fait donc partie de la signature.
+    ///
+    /// L'encodeur synthetise omet les optionnels nuls (`encodeIfPresent`).
+    /// Tant que l'utilisateur n'avait pas choisi d'association, la cle
+    /// disparaissait de la requete et PostgREST cherchait une surcharge a sept
+    /// parametres qui n'existe pas — « Could not find the function
+    /// public.commit_goal(...) in the schema cache », message qui ne dit rien
+    /// d'une association manquante. La colonne accepte pourtant `null` : c'est
+    /// bien la cle absente, et non sa valeur, qui cassait l'appel.
+    ///
+    /// Meme piege que pour l'insertion des objectifs, ou l'omission des cles
+    /// nulles faisait rejeter un lot heterogene.
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(goalID, forKey: .goalID)
+        try container.encode(amountCents, forKey: .amountCents)
+        try container.encode(charityID, forKey: .charityID)
+        try container.encode(charityBps, forKey: .charityBps)
+        try container.encode(termsVersion, forKey: .termsVersion)
+        try container.encode(termsHash, forKey: .termsHash)
+        try container.encode(payload, forKey: .payload)
+        try container.encode(appVersion, forKey: .appVersion)
+    }
 }
