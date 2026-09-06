@@ -14,15 +14,25 @@ export type Route = "validated" | "rejected" | "human_review";
 export interface RoutingConfig {
   /** Confiance minimale pour trancher sans intervention humaine. */
   confidenceThreshold: number;
-  /** Au-delà de ce montant, tout verdict passe par un humain. */
-  humanReviewStakeThresholdCents: number;
+  /**
+   * Au-delà de ce montant, tout verdict passe par un humain.
+   *
+   * `null` désactive le critère : le montant ne déclenche plus jamais de
+   * revue, et seuls la confiance du modèle, les signaux d'anti-triche et
+   * l'échantillon aléatoire peuvent encore escalader. C'est un choix
+   * délibéré (2026-09-06), pas un oubli — le mécanisme reste en place pour
+   * qu'un seuil puisse être remis sans réécrire le routage.
+   */
+  humanReviewStakeThresholdCents: number | null;
   /** Part des validations relue au hasard, pour la dissuasion. */
   randomAuditRate: number;
 }
 
 export const DEFAULT_ROUTING: RoutingConfig = {
   confidenceThreshold: 0.8,
-  humanReviewStakeThresholdCents: 2_000, // 20 €
+  // Desactive : le montant seul ne fait plus escalader. Voir la decision du
+  // 2026-09-06 dans CLAUDE.md.
+  humanReviewStakeThresholdCents: null,
   randomAuditRate: 0.05,
 };
 
@@ -75,8 +85,12 @@ export function routeVerdict(input: RoutingInput): RoutingDecision {
     };
   }
 
-  // Sur les mises élevées, l'erreur coûte trop cher pour être automatisée.
-  if (input.stakeAmountCents >= config.humanReviewStakeThresholdCents) {
+  // Sur les mises élevées, l'erreur coûte trop cher pour être automatisée —
+  // quand le seuil existe. `null` le désactive volontairement.
+  if (
+    config.humanReviewStakeThresholdCents !== null &&
+    input.stakeAmountCents >= config.humanReviewStakeThresholdCents
+  ) {
     return { route: "human_review", reason: "high_stake" };
   }
 

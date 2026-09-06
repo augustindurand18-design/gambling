@@ -103,15 +103,31 @@ Deno.test("une validation nette est automatique sur une petite mise", () => {
   assertEquals(decision.route, "validated");
 });
 
-Deno.test("une mise elevee passe systematiquement par un humain", () => {
+Deno.test("une mise elevee passe par un humain quand un seuil existe", () => {
   const decision = routeVerdict({
     verdict: PASS,
     antiCheat: CLEAN,
-    stakeAmountCents: DEFAULT_ROUTING.humanReviewStakeThresholdCents,
+    stakeAmountCents: 2_000,
+    config: { ...DEFAULT_ROUTING, humanReviewStakeThresholdCents: 2_000 },
     random: never,
   });
   assertEquals(decision.route, "human_review");
   assertEquals(decision.reason, "high_stake");
+});
+
+Deno.test("sans seuil, le montant seul ne fait plus escalader", () => {
+  // Desactivation deliberee (2026-09-06) : le montant ne declenche plus de
+  // revue. Le mecanisme reste teste juste au-dessus, pour qu'un seuil puisse
+  // etre remis sans que rien n'ait pourri entre-temps.
+  assertEquals(DEFAULT_ROUTING.humanReviewStakeThresholdCents, null);
+
+  const decision = routeVerdict({
+    verdict: PASS,
+    antiCheat: CLEAN,
+    stakeAmountCents: 10_000,
+    random: never,
+  });
+  assertEquals(decision.route, "validated");
 });
 
 Deno.test("une suspicion de fraude ne rejette jamais directement", () => {

@@ -34,6 +34,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return errorResponse("Méthode non autorisée", 405);
   }
 
+  // Déployée avec `--no-verify-jwt` : elle est appelée par Postgres via
+  // pg_net, qui ne transporte pas un JWT sans le déformer (voir 0033). Elle
+  // contrôle donc elle-même son appelant, avec un jeton court.
+  //
+  // Sans `PUSH_TRIGGER_SECRET` défini, tout appel est refusé plutôt
+  // qu'accepté : un secret oublié ne doit pas ouvrir la porte.
+  const expected = Deno.env.get("PUSH_TRIGGER_SECRET");
+  if (!expected || req.headers.get("x-gage-trigger") !== expected) {
+    return errorResponse("Appel non autorisé", 401);
+  }
+
   const db = adminClient();
   const provider = selectProvider((key) => Deno.env.get(key));
 

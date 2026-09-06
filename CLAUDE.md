@@ -267,6 +267,17 @@ abandonné en silence, même après correction.
 
 ## Décisions
 _(date + décision + raison)_
+- 2026-09-06 : **le montant d'une mise ne déclenche plus de revue humaine.**
+  Le seuil était à 20 €, il passe à `null` : `humanReviewStakeThresholdCents`
+  reste dans `RoutingConfig` et le mécanisme reste testé, pour qu'un seuil
+  puisse être remis sans réécrire le routage. Restent l'anti-triche, la
+  confiance sous 0,8 et l'échantillon aléatoire de 5 %. À réexaminer avant la
+  bêta : c'est la garde qui empêchait l'IA de trancher seule jusqu'au plafond
+  de 100 €.
+- 2026-09-06 : **`verify-proof` est planifiée** (`0034`), sur le même battement
+  et le même jeton court que `send-push`. Une preuve envoyée restait sinon en
+  `proof_submitted` indéfiniment — sans coût pour l'utilisateur, l'échéance
+  étant déjà passée, mais sans réponse non plus.
 - 2026-09-06 : **Apple Pay proposé à l'enregistrement de la carte, mais
   conditionné**. Apple Pay n'enregistre pas un numéro de carte, il enregistre un
   jeton propre à l'appareil, et tout le modèle repose sur un débit `off_session`
@@ -366,7 +377,7 @@ Toutes provisoires, isolées en constantes. À arbitrer (voir `docs/architecture
 | Part reversée à l'association | 25 % (2500 bps) | `AppConfig.swift`, `stakes.charity_bps` |
 | Plafond par objectif | 100 € | `profiles.per_goal_cap_cents` |
 | Plafond mensuel | 150 € | `profiles.monthly_cap_cents` |
-| Seuil de revue humaine | 20 € | `routing.ts` |
+| Seuil de revue humaine | **désactivé** | `routing.ts` |
 | Relecture aléatoire | 5 % des validations | `routing.ts` |
 | Seuil de confiance du modèle | 0,8 | `routing.ts` |
 | Objectifs/semaine pour la remise | 3 | `app.assiduity_threshold()` |
