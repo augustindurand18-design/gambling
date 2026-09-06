@@ -46,7 +46,7 @@ select is(
 
 -- ------------------------------------- 2. reglages poses
 select vault.create_secret('https://exemple.test', 'edge_project_url');
-select vault.create_secret('cle-de-test', 'edge_anon_key');
+select vault.create_secret('jeton-de-test', 'edge_trigger_secret');
 
 select is(
   app.edge_setting('edge_project_url'), 'https://exemple.test',

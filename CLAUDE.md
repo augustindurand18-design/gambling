@@ -389,6 +389,18 @@ test qui assène le littéral 900. Même remarque pour la tolérance d'horloge.
 ## Historique des incidents (pour ne pas les refaire)
 - **2026-09-02** — Le trigger de la machine à états échouait sur une erreur de permission pour tout appel client : le rôle `authenticated` n'avait pas accès au schéma `app`. La garde qui protège l'argent ne s'exécutait donc jamais dans le cas qui compte. Trouvé en exécutant, invisible à la lecture.
 - **2026-09-02** — Le journal d'audit se faisait refuser par sa propre RLS dès qu'une transition venait d'un client. Corrigé en passant les triggers en `security definer`.
+- **2026-09-06** — Le cron n'a jamais reussi a declencher `send-push`. Il
+  passait la cle anon dans un en-tete `Authorization` via `net.http_post`, et
+  le portail repondait invariablement 401 `UNAUTHORIZED_INVALID_JWT_FORMAT` —
+  **y compris avec la cle ecrite en dur dans la requete**, ce qui innocente
+  Vault : `pg_net` ne transporte pas sans dommage une valeur d'en-tete de 215
+  caracteres. La meme cle envoyee par `curl` passe. Corrige par `0033` : jeton
+  court dans un en-tete a nous, controle par la fonction elle-meme, deployee
+  en `--no-verify-jwt`. **Le piege du diagnostic** : chaque `curl` de secours
+  vidait la file, si bien que l'essai suivant n'avait plus rien a livrer et
+  sortait sans erreur — on a cru trois fois que c'etait repare. `pg_net` est
+  asynchrone : les codes HTTP se lisent dans `net._http_response`, et les
+  appels du cron s'y reconnaissent a leur horodatage sur la minute pleine.
 - **2026-09-06** — Aucune preuve n'atteignait le bucket. `UUID.uuidString`
   rend l'identifiant en **majuscules**, `auth.uid()::text` en **minuscules**,
   et la policy de stockage compare les deux chaînes telles quelles : tout
