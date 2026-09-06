@@ -17,6 +17,7 @@ struct SignInView: View {
     @State private var code = ""
     @State private var isWorking = false
     @State private var errorMessage: String?
+    @State private var noticeMessage: String?
 
     var body: some View {
         ScreenBackground(glow: .topTrailing) {
@@ -45,6 +46,12 @@ struct SignInView: View {
                     Text(errorMessage)
                         .font(Theme.Fonts.cardSubtitle)
                         .foregroundStyle(Theme.Colors.failed)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, Theme.Spacing.small + 2)
+                } else if let noticeMessage {
+                    Text(noticeMessage)
+                        .font(Theme.Fonts.cardSubtitle)
+                        .foregroundStyle(Theme.Colors.kept)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, Theme.Spacing.small + 2)
                 }
@@ -76,6 +83,16 @@ struct SignInView: View {
                     .controlSize(.large)
                     .tint(Theme.Colors.brand)
             }
+        }
+        .onChange(of: code) { _, newValue in
+            // On borne la saisie a six chiffres (l'autofill ou un collage
+            // peut en fournir davantage).
+            let digits = String(newValue.filter(\.isNumber).prefix(6))
+            if digits != code { code = digits }
+            // Des que le code est complet, on lance la connexion sans
+            // attendre un appui sur le bouton.
+            guard step == .code, !isWorking, digits.count == 6 else { return }
+            verify()
         }
         .toolbar(.hidden, for: .navigationBar)
     }
@@ -165,6 +182,8 @@ struct SignInView: View {
     private func resend() {
         run {
             try await AuthAPI.shared.sendCode(to: email)
+            code = ""
+            noticeMessage = "Nouveau code envoyé. Les précédents ne sont plus valables."
         }
     }
 
@@ -172,13 +191,24 @@ struct SignInView: View {
     /// captee par `SessionStore`, qui bascule l'application sur l'accueil.
     private func verify() {
         run {
-            try await AuthAPI.shared.verify(code: code, for: email)
+            do {
+                try await AuthAPI.shared.verify(code: code, for: email)
+            } catch {
+                // Demander un nouveau code annule le precedent. Quelqu'un qui
+                // a clique deux fois recoit deux e-mails et saisit souvent le
+                // premier arrive, qui ne vaut plus rien : le dire evite de
+                // chercher une faute de frappe qui n'existe pas.
+                throw AppError.server(
+                    message: "Ce code ne fonctionne pas. Si tu en as demandé plusieurs, seul le dernier reçu est valable."
+                )
+            }
         }
     }
 
     private func run(_ work: @escaping () async throws -> Void) {
         isWorking = true
         errorMessage = nil
+        noticeMessage = nil
         Task {
             do {
                 try await work()

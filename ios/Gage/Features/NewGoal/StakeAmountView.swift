@@ -11,6 +11,12 @@ import SwiftUI
 /// affichees et une signature.
 struct StakeAmountView: View {
     @Binding var amountCents: Int
+    /// Le plan n'a pas d'usage ici, sinon les points de progression : le
+    /// parcours compte une etape de moins quand l'ecran de declinaison a ete
+    /// saute. Il arrive par lien et non par copie, comme le brouillon de
+    /// l'ecran d'engagement, pour ne pas rester fige sur l'etat d'avant le
+    /// choix de la famille.
+    @Binding var plan: GoalPlan
     /// Plafond par objectif accepte par l'utilisateur ; borne la roue.
     var capCents: Int = BusinessRules.defaultPerGoalCapCents
     let onContinue: () -> Void
@@ -21,8 +27,8 @@ struct StakeAmountView: View {
         ScreenBackground(glow: .topTrailing) {
             VStack(alignment: .leading, spacing: 0) {
                 StepHeader(
-                    count: NewGoalStep.total,
-                    index: NewGoalStep.stake.index,
+                    count: NewGoalStep.total(skippingVariant: plan.skipsVariantStep),
+                    index: NewGoalStep.stake.index(skippingVariant: plan.skipsVariantStep),
                     onBack: { dismiss() }
                 )
 
@@ -69,5 +75,6 @@ struct StakeAmountView: View {
 
 #Preview {
     @Previewable @State var amount = BusinessRules.defaultStakeCents
-    StakeAmountView(amountCents: $amount, onContinue: {})
+    @Previewable @State var plan = GoalPlan(categoryID: "sport", variantID: "gym")
+    StakeAmountView(amountCents: $amount, plan: $plan, onContinue: {})
 }

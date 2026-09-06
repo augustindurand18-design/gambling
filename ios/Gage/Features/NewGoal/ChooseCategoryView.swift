@@ -16,12 +16,12 @@ struct ChooseCategoryView: View {
         ScreenBackground(glow: .topTrailing) {
             VStack(alignment: .leading, spacing: 0) {
                 StepHeader(
-                    count: NewGoalStep.total,
-                    index: NewGoalStep.category.index,
+                    count: NewGoalStep.total(skippingVariant: plan.skipsVariantStep),
+                    index: NewGoalStep.category.index(skippingVariant: false),
                     onBack: { dismiss() }
                 )
 
-                Text("Qu'est-ce que tu veux te forcer à faire ?")
+                Text("Qu'est-ce que tu te promets de faire ?")
                     .font(Theme.Fonts.title)
                     .foregroundStyle(Theme.Colors.ink)
                     .lineSpacing(2)

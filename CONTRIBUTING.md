@@ -83,8 +83,8 @@ Le premier lancement télécharge plusieurs images Docker. La commande affiche �
 la fin un bloc JSON contenant `ANON_KEY` — gardez-le sous la main.
 
 ```bash
-supabase db reset     # applique les 18 migrations + le seed
-supabase test db      # 24 tests pgTAP, doivent tous passer
+supabase db reset     # applique les 31 migrations + le seed
+supabase test db      # 104 tests pgTAP, doivent tous passer
 ```
 
 Interface d'administration : http://127.0.0.1:54323
@@ -137,12 +137,108 @@ changements de configuration relisibles en revue.
 ## 4. Tests
 
 ```bash
-supabase test db                                      # base : 24 tests
-deno test supabase/functions --allow-env --no-check   # fonctions : 21 tests
-./scripts/ios-test.sh                                 # iOS : 19 tests
+supabase test db                                      # base : 104 tests
+deno test supabase/functions --allow-env --no-check   # fonctions : 59 tests
+./scripts/ios-test.sh                                 # iOS : 68 tests
 ```
 
 `./scripts/db-reset.sh` enchaîne reset + tests.
+
+### Exercer la boucle de notification en local
+
+Un `db reset` laisse une base sans compte. Une fois connecté depuis
+l'application :
+
+```bash
+./scripts/dev-moyen-paiement.sh
+```
+
+`commit_goal` refuse d'engager un objectif sans moyen de paiement — Stripe
+n'est pas branché — et `app.open_due_proof_windows()` refuse d'ouvrir une
+fenêtre pour quelqu'un sans appareil joignable. Ce script pose les deux, en
+local uniquement.
+
+Le cron `gage-tick` tourne ensuite toutes les minutes : planification,
+ouverture, clôture. Pour voir où en est un objectif :
+
+```bash
+docker exec -i supabase_db_nouveau_SaaS psql -U postgres -c "select g.title, g.state, n.fire_at, n.sent_at, n.last_error from goals g left join notification_schedule n on n.goal_id = g.id order by g.created_at desc limit 10;"
+```
+
+`send-push` n'est pas planifiée : l'appeler depuis Postgres demanderait une clé
+de service dans une migration, et le dépôt est public. On l'invoque à la main.
+
+```bash
+supabase functions serve send-push --env-file supabase/.env
+```
+
+Sans identifiants APNs — le cas aujourd'hui, faute de compte Apple Developer —
+elle journalise une commande `xcrun simctl push` prête à coller, qui exerce le
+routage dans l'application. Cela ne teste pas la livraison, seulement ce que
+l'app fait du message.
+
+### Vérifier une preuve
+
+`verify-proof` n'est pas planifiée non plus. Sans argument elle traite toute la
+file des preuves en attente ; avec `{"proof_id": "..."}` elle n'en traite qu'une.
+
+```bash
+supabase functions serve verify-proof --env-file supabase/.env
+```
+
+Le fournisseur se choisit sur les variables présentes, dans cet ordre :
+
+| Variable | Fournisseur | Usage |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | Claude — Haiku, escalade Sonnet sur le doute | production |
+| `GEMINI_API_KEY` | Gemini — `gemini-3.5-flash-lite` par défaut | test uniquement |
+| aucune | — | chaque preuve part en revue humaine |
+
+L'ordre n'est pas négociable : une clé de test ne doit jamais détourner la
+production de Claude. Et sans aucune clé, **on n'invente pas de verdict** —
+tout va en revue humaine. C'est coûteux et c'est voulu.
+
+⚠️ Le prompt système est écrit et réglé pour Claude. Gemini sert à exercer la
+chaîne, pas à mesurer la qualité de vérification.
+
+### Exercer la chaîne de paiement
+
+Dans `supabase/.env` : `STRIPE_SECRET_KEY` (une clé restreinte `rk_test_`
+suffit — il lui faut Clients, SetupIntents, PaymentIntents et Clés éphémères
+en écriture, Moyens de paiement en lecture) et `STRIPE_PUBLISHABLE_KEY`.
+La publiable va aussi dans `ios/Config/Secrets.xcconfig`, sans quoi le
+formulaire de carte ne s'ouvre pas.
+
+Pour les webhooks, dans un terminal laissé ouvert :
+
+```bash
+stripe listen --api-key "$STRIPE_SECRET_KEY" --forward-to http://127.0.0.1:54321/functions/v1/stripe-webhook
+```
+
+⚠️ **`--api-key` n'est pas optionnel** si la CLI est authentifiée sur un autre
+compte que la clé. C'est arrivé : `stripe listen` écoutait un compte, le code
+écrivait dans l'autre, et le webhook ne se déclenchait jamais. Le `whsec_…`
+affiché au démarrage va dans `STRIPE_WEBHOOK_SECRET`, et il change à chaque
+lancement.
+
+Cartes de test utiles. Celles qui refusent à la validation **ne peuvent pas
+être enregistrées** — ce qui est fidèle à la réalité :
+
+| Jeton | Comportement |
+|---|---|
+| `pm_card_visa` | s'enregistre et se débite |
+| `pm_card_chargeCustomerFail` | s'enregistre, puis **échoue** au débit |
+| `pm_card_authenticationRequired` | s'enregistre, puis exige une authentification |
+| `pm_card_chargeDeclined` | refusée dès l'attachement |
+
+`GEMINI_MODEL` permet d'en essayer un autre. Attention : Google ferme ses
+anciens modèles aux comptes récents — `gemini-2.5-flash-lite` répond
+« no longer available to new users » avec un 404. Si le défaut cesse de
+fonctionner, la liste des modèles ouverts à ta clé se demande ainsi :
+
+```bash
+curl -s "https://generativelanguage.googleapis.com/v1beta/models" -H "x-goog-api-key: $GEMINI_API_KEY" | grep '"name"'
+```
 
 ### Ce que les tests protègent
 

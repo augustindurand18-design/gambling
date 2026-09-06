@@ -32,6 +32,23 @@ struct AppRootView: View {
             }
         }
         .task { await session.observe() }
+        .task(id: isSignedIn) {
+            // Sans jeton APNs enregistre, `app.open_due_proof_windows()`
+            // refuse d'ouvrir la fenetre : elle ne lance pas un compte a
+            // rebours qu'elle ne peut annoncer a personne. L'autorisation
+            // n'est donc pas un confort, c'est ce qui rend l'objectif jouable.
+            //
+            // Redemande a chaque ouverture de session ET a chaque lancement :
+            // le jeton change apres une restauration de sauvegarde ou une mise
+            // a jour du systeme, et le serveur doit recevoir le nouveau.
+            guard isSignedIn else { return }
+            await PushAuthorization.requestIfNeeded()
+        }
+    }
+
+    private var isSignedIn: Bool {
+        if case .signedIn = session.state { return true }
+        return false
     }
 }
 

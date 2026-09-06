@@ -15,8 +15,8 @@ struct PlanWeekView: View {
         ScreenBackground(glow: .topTrailing) {
             VStack(alignment: .leading, spacing: 0) {
                 StepHeader(
-                    count: NewGoalStep.total,
-                    index: NewGoalStep.plan.index,
+                    count: NewGoalStep.total(skippingVariant: plan.skipsVariantStep),
+                    index: NewGoalStep.plan.index(skippingVariant: plan.skipsVariantStep),
                     onBack: { dismiss() }
                 )
 
@@ -67,9 +67,9 @@ struct PlanWeekView: View {
                     selectedFont: Theme.Fonts.sentence
                 )
                 .frame(width: 78)
-                .accessibilityLabel("Séances par semaine")
+                .accessibilityLabel("Séances cette semaine")
 
-                Text("fois par semaine")
+                Text("fois cette semaine")
                     .font(Theme.Fonts.sentence)
                     .foregroundStyle(Theme.Colors.ink)
             }
@@ -103,6 +103,7 @@ struct PlanWeekView: View {
                 DayScheduleCard(
                     day: day,
                     time: plan.time(for: day),
+                    requiresFixedTime: plan.requiresFixedTime,
                     onChange: { plan.setTime($0, for: day) }
                 )
             }
@@ -123,9 +124,13 @@ struct PlanWeekView: View {
 }
 
 /// Un jour retenu : sait-on deja a quelle heure, ou le dira-t-on le matin ?
+///
+/// La question ne se pose pas pour un reveil : l'heure y est la promesse, la
+/// carte n'offre alors que la roue horaire.
 private struct DayScheduleCard: View {
     let day: Weekday
     let time: DayTime
+    let requiresFixedTime: Bool
     let onChange: (DayTime) -> Void
 
     var body: some View {
@@ -142,12 +147,14 @@ private struct DayScheduleCard: View {
                     .foregroundStyle(Theme.Colors.inkMuted)
             }
 
-            HStack(spacing: 8) {
-                choice(title: "Je sais l'heure", isOn: time.isFixed) {
-                    onChange(.fixed(hour: time.hour, minute: time.minute))
-                }
-                choice(title: "Le matin même", isOn: !time.isFixed) {
-                    onChange(.onTheDay)
+            if !requiresFixedTime {
+                HStack(spacing: 8) {
+                    choice(title: "Je sais l'heure", isOn: time.isFixed) {
+                        onChange(.fixed(hour: time.hour, minute: time.minute))
+                    }
+                    choice(title: "Le matin même", isOn: !time.isFixed) {
+                        onChange(.onTheDay)
+                    }
                 }
             }
 
@@ -194,7 +201,12 @@ private struct DayScheduleCard: View {
     }
 }
 
-#Preview {
+#Preview("Heure facultative") {
     @Previewable @State var plan = GoalPlan(categoryID: "sport", variantID: "gym")
+    PlanWeekView(plan: $plan, onContinue: {})
+}
+
+#Preview("Heure obligatoire") {
+    @Previewable @State var plan = GoalPlan(categoryID: "wake-up", variantID: "plain")
     PlanWeekView(plan: $plan, onContinue: {})
 }

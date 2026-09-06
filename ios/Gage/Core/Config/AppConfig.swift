@@ -92,7 +92,7 @@ enum BusinessRules {
     static let minStakeCents = 100               // 1 EUR
 
     /// Mise proposee par defaut a l'onboarding.
-    static let defaultStakeCents = 2_500         // 25 EUR
+    static let defaultStakeCents = 1_000         // 10 EUR
 
     /// Pas de la roue de selection de mise.
     static let stakeStepCents = 500              // 5 EUR

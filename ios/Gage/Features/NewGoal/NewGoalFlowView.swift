@@ -15,9 +15,18 @@ enum NewGoalStep: Hashable, CaseIterable {
     case stake
     case commitment
 
-    static let total = NewGoalStep.allCases.count
+    /// Une famille qui n'a qu'une declinaison saute l'etape correspondante :
+    /// le parcours ne compte alors que cinq points de progression.
+    static func total(skippingVariant: Bool) -> Int {
+        skippingVariant ? allCases.count - 1 : allCases.count
+    }
 
-    var index: Int {
+    func index(skippingVariant: Bool) -> Int {
+        guard skippingVariant, self != .category else { return rank }
+        return rank - 1
+    }
+
+    private var rank: Int {
         switch self {
         case .category: 0
         case .variant: 1
@@ -52,7 +61,9 @@ struct NewGoalFlowView: View {
     var body: some View {
         NavigationStack(path: $path) {
             ChooseCategoryView(plan: $draft.plan) {
-                path.append(.variant)
+                // La declinaison est deja retenue quand la famille n'en a
+                // qu'une : son ecran n'aurait rien a faire choisir.
+                path.append(draft.plan.skipsVariantStep ? .plan : .variant)
             }
             .navigationDestination(for: NewGoalStep.self) { step in
                 switch step {
@@ -76,7 +87,10 @@ struct NewGoalFlowView: View {
                     }
 
                 case .stake:
-                    StakeAmountView(amountCents: $draft.stakeAmountCents) {
+                    StakeAmountView(
+                        amountCents: $draft.stakeAmountCents,
+                        plan: $draft.plan
+                    ) {
                         path.append(.commitment)
                     }
 

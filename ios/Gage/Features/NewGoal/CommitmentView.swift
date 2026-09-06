@@ -6,10 +6,17 @@ import SwiftUI
 /// Tout tient sur un seul ecran, sans defilement : le montant ne doit jamais
 /// pouvoir etre accepte sans avoir ete lu.
 ///
-/// L'ecran ne fait pour l'instant qu'afficher et recueillir le geste. Rien
-/// n'est envoye au serveur : l'enregistrement horodate du consentement et
-/// l'appel a `commit_goal` viendront avec le branchement Stripe, et c'est la
-/// base qui restera l'autorite sur l'engagement.
+/// Le geste declenche deux ecritures, dans cet ordre : les objectifs de la
+/// semaine sont crees en brouillon, puis chacun est engage par `commit_goal`,
+/// qui cree la mise et enregistre le consentement horodate dans la meme
+/// transaction. La base reste l'autorite : elle verifie les plafonds, le
+/// moyen de paiement et l'absence de blocage, et refuse si quoi que ce soit
+/// manque.
+///
+/// Si un engagement echoue en cours de route, les objectifs deja engages le
+/// restent et les autres demeurent en brouillon. C'est volontaire : annuler
+/// un engagement demanderait de defaire un consentement, or ceux-ci sont
+/// immuables (invariant 3). L'utilisateur voit ce qui a ete pris.
 struct CommitmentView: View {
     /// Le brouillon arrive par lien et non par copie : la fermeture qui
     /// construit cet ecran est enregistree une fois par la pile de navigation,
@@ -33,8 +40,8 @@ struct CommitmentView: View {
         ScreenBackground(glow: .topTrailing) {
             VStack(alignment: .leading, spacing: 0) {
                 StepHeader(
-                    count: NewGoalStep.total,
-                    index: NewGoalStep.commitment.index,
+                    count: NewGoalStep.total(skippingVariant: plan.skipsVariantStep),
+                    index: NewGoalStep.commitment.index(skippingVariant: plan.skipsVariantStep),
                     onBack: { dismiss() }
                 )
 
@@ -212,13 +219,66 @@ struct CommitmentView: View {
             #endif
 
             do {
-                try await GoalsAPI.shared.createGoals(plan: plan)
+                let account = try await ProfileAPI.shared.load()
+
+                // Le refus se lit avant d'ecrire quoi que ce soit. Creer des
+                // brouillons pour echouer a les engager laisserait des
+                // objectifs orphelins sur l'accueil.
+                if let blocker = account.blocker {
+                    isSaving = false
+                    errorMessage = blocker
+                    return
+                }
+
+                let goals = try await GoalsAPI.shared.createGoals(plan: plan)
+                try await engage(goals, charityID: account.defaultCharityID,
+                                 cardLast4: account.pmLast4)
                 finish()
             } catch {
                 isSaving = false
                 errorMessage = (error as? AppError)?.errorDescription
                     ?? "Impossible d'enregistrer ton objectif."
             }
+        }
+    }
+
+    /// Engage chaque seance : une mise et un consentement par objectif.
+    ///
+    /// Le consentement est hache sur le texte exact affiche, seance par
+    /// seance — le libelle du jour en fait partie. Hacher un texte generique
+    /// reviendrait a ne pouvoir prouver que le generique.
+    private func engage(
+        _ goals: [CreatedGoal],
+        charityID: UUID?,
+        cardLast4: String?
+    ) async throws {
+        for goal in goals {
+            let sealed = ConsentTerms.sealed(
+                ConsentTerms.Context(
+                    goalTitle: plan.weeklyTitle,
+                    proofInstruction: plan.selectedProof.map { "\($0.title) — \($0.subtitle)" },
+                    amountCents: stakeAmountCents,
+                    charityBps: BusinessRules.charityBps,
+                    scheduleText: plan.scheduleText,
+                    cardLast4: cardLast4
+                )
+            )
+
+            try await PaymentAPI.shared.commit(
+                goalID: goal.id,
+                amountCents: stakeAmountCents,
+                charityID: charityID,
+                consent: ConsentRecord(
+                    goalTitle: plan.weeklyTitle,
+                    proofInstruction: plan.selectedProof.map { "\($0.title) — \($0.subtitle)" },
+                    amountCents: stakeAmountCents,
+                    charityBps: BusinessRules.charityBps,
+                    targetDate: goal.targetDate,
+                    scheduleText: plan.scheduleText,
+                    acceptedAt: .now,
+                    termsHash: sealed.hash
+                )
+            )
         }
     }
 

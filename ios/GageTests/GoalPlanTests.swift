@@ -20,8 +20,8 @@ final class GoalPlanTests: XCTestCase {
         plan.selectCategory("sport")
         plan.selectVariant("gym")
 
-        XCTAssertEqual(plan.sentence, "Je me promets d'aller à la salle 3 fois par semaine.")
-        XCTAssertEqual(plan.shortTitle, "La salle · 3 fois par semaine")
+        XCTAssertEqual(plan.sentence, "Je me promets d'aller à la salle 3 fois cette semaine.")
+        XCTAssertEqual(plan.shortTitle, "La salle · 3 fois cette semaine")
     }
 
     func testLeRythmeSeLitDansLaPhrase() {
@@ -30,7 +30,7 @@ final class GoalPlanTests: XCTestCase {
         plan.selectVariant("plain")
         plan.setTimesPerWeek(1)
 
-        XCTAssertEqual(plan.sentence, "Je me promets de me lever 1 fois par semaine.")
+        XCTAssertEqual(plan.sentence, "Je me promets de me lever 1 fois cette semaine.")
     }
 
     // MARK: - Cascade
@@ -48,6 +48,24 @@ final class GoalPlanTests: XCTestCase {
         XCTAssertNil(plan.selectedProof)
     }
 
+    func testUneFamilleADeclinaisonUniqueLaRetientDOffice() {
+        var plan = GoalPlan()
+        plan.selectCategory("wake-up")
+
+        XCTAssertEqual(
+            plan.variantID, "plain",
+            "Une famille sans alternative ne doit pas faire passer par un écran de choix"
+        )
+        XCTAssertFalse(plan.proofs.isEmpty, "Les preuves doivent être disponibles dans la foulée")
+    }
+
+    func testUneFamilleAPlusieursDeclinaisonsNenRetientAucune() {
+        var plan = GoalPlan()
+        plan.selectCategory("sport")
+
+        XCTAssertNil(plan.variantID, "Le choix reste à l'utilisateur dès qu'il y a une alternative")
+    }
+
     func testChangerDeDeclinaisonEfaceLaPreuve() {
         var plan = GoalPlan()
         plan.selectCategory("sport")
@@ -57,6 +75,39 @@ final class GoalPlanTests: XCTestCase {
         plan.selectVariant("run")
 
         XCTAssertNil(plan.proofID)
+    }
+
+    // MARK: - Heure
+
+    func testUnReveilExigeUneHeureDesLaCreation() {
+        var plan = GoalPlan()
+        plan.selectCategory("wake-up")
+        plan.toggleDay(.monday)
+
+        XCTAssertTrue(plan.requiresFixedTime)
+        XCTAssertTrue(
+            plan.time(for: .monday).isFixed,
+            "Un réveil ne peut pas se renseigner le matin même : l'heure est la promesse"
+        )
+
+        plan.setTime(.onTheDay, for: .monday)
+        XCTAssertTrue(
+            plan.time(for: .monday).isFixed,
+            "« Le matin même » doit être refusé, pas seulement masqué à l'écran"
+        )
+    }
+
+    func testAilleursLHeureResteFacultative() {
+        var plan = GoalPlan()
+        plan.selectCategory("sport")
+        plan.selectVariant("gym")
+        plan.toggleDay(.monday)
+
+        XCTAssertFalse(plan.requiresFixedTime)
+        XCTAssertFalse(
+            plan.time(for: .monday).isFixed,
+            "Aller à la salle n'impose pas de connaître l'heure à l'avance"
+        )
     }
 
     // MARK: - Semaine
@@ -71,6 +122,32 @@ final class GoalPlanTests: XCTestCase {
         XCTAssertEqual(plan.days, [.monday, .wednesday])
         XCTAssertFalse(plan.canSelectMoreDays)
         XCTAssertTrue(plan.isScheduleComplete)
+    }
+
+    func testPromettreSeptSeancesCocheLaSemaineEntiere() {
+        var plan = GoalPlan()
+        plan.setTimesPerWeek(7)
+
+        XCTAssertEqual(
+            plan.days, Set(Weekday.allCases),
+            "Sept séances sur sept jours ne laissent rien à choisir"
+        )
+        XCTAssertTrue(plan.isScheduleComplete)
+        XCTAssertFalse(plan.canSelectMoreDays)
+    }
+
+    func testPasserASeptConserveLesHeuresDejaChoisies() {
+        var plan = GoalPlan()
+        plan.toggleDay(.monday)
+        plan.setTime(.fixed(hour: 18, minute: 30), for: .monday)
+
+        plan.setTimesPerWeek(7)
+
+        XCTAssertEqual(plan.days.count, 7)
+        XCTAssertEqual(
+            plan.time(for: .monday), .fixed(hour: 18, minute: 30),
+            "Cocher le reste de la semaine ne doit pas écraser une heure déjà réglée"
+        )
     }
 
     func testBaisserLeRythmeRetireLesDerniersJours() {
@@ -164,14 +241,18 @@ final class GoalPlanTests: XCTestCase {
 
     // MARK: - Catalogue
 
-    func testChaqueDeclinaisonProposeAuMoinsDeuxPreuves() {
+    /// Le nombre de preuves varie d'un objectif a l'autre : un lieu se prouve
+    /// par la seule photo sur place, un rangement par deux cadrages. On exige
+    /// donc au moins une preuve, jamais un quota — tenir un quota obligerait a
+    /// reintroduire les preuves faibles retirees a l'audit du 2026-09-05.
+    func testChaqueDeclinaisonProposeAuMoinsUnePreuve() {
         for category in GoalCatalogue.categories {
             XCTAssertFalse(category.variants.isEmpty, "« \(category.title) » n'a aucune déclinaison")
 
             for variant in category.variants {
-                XCTAssertGreaterThanOrEqual(
-                    variant.proofs.count, 2,
-                    "« \(variant.title) » doit laisser un vrai choix de preuve"
+                XCTAssertFalse(
+                    variant.proofs.isEmpty,
+                    "« \(variant.title) » ne propose aucune preuve"
                 )
                 XCTAssertEqual(
                     Set(variant.proofs.map(\.id)).count, variant.proofs.count,
@@ -189,5 +270,21 @@ final class GoalPlanTests: XCTestCase {
             Set(GoalCatalogue.categories.map(\.id)).count, GoalCatalogue.categories.count,
             "Identifiants de famille dupliqués"
         )
+    }
+
+    /// Aucune preuve ne repose sur le fait de se photographier : c'est la
+    /// donnee la plus sensible qu'on puisse demander tous les jours, et aucun
+    /// objectif n'en depend depuis l'audit du 2026-09-05.
+    func testAucunePreuveNeDemandeUnSelfie() {
+        for category in GoalCatalogue.categories {
+            for variant in category.variants {
+                for proof in variant.proofs {
+                    XCTAssertFalse(
+                        proof.title.localizedCaseInsensitiveContains("selfie"),
+                        "« \(variant.title) » redemande un selfie : \(proof.title)"
+                    )
+                }
+            }
+        }
     }
 }

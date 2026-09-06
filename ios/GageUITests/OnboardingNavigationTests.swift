@@ -18,6 +18,10 @@ final class OnboardingNavigationTests: XCTestCase {
     /// réservée au rôle authenticated.
     func testCommencerDemandeUneAdresseEmail() {
         let app = XCUIApplication()
+        // Sans ce drapeau, une session laissee dans le trousseau du simulateur
+        // ouvrirait l'accueil au lieu de l'ecran de bienvenue, et le test
+        // echouerait sans qu'aucun code n'ait change.
+        app.launchArguments += ["-uiTestSignedOut"]
         app.launch()
 
         let commencer = app.buttons["Commencer"]
@@ -47,6 +51,10 @@ final class OnboardingNavigationTests: XCTestCase {
     /// déjà venu.
     func testSeConnecterMeneAuMemeEcran() {
         let app = XCUIApplication()
+        // Sans ce drapeau, une session laissee dans le trousseau du simulateur
+        // ouvrirait l'accueil au lieu de l'ecran de bienvenue, et le test
+        // echouerait sans qu'aucun code n'ait change.
+        app.launchArguments += ["-uiTestSignedOut"]
         app.launch()
 
         let seConnecter = app.buttons["Se connecter"]
@@ -74,7 +82,7 @@ final class OnboardingNavigationTests: XCTestCase {
 
         // 1. La famille, en liste générique.
         XCTAssertTrue(
-            app.staticTexts["Qu'est-ce que tu veux te forcer à faire ?"].waitForExistence(timeout: 5),
+            app.staticTexts["Qu'est-ce que tu te promets de faire ?"].waitForExistence(timeout: 5),
             "L'écran des familles d'objectif ne s'est pas affiché"
         )
         attach(app, name: "03-familles")
@@ -119,20 +127,21 @@ final class OnboardingNavigationTests: XCTestCase {
 
         planContinuer.tap()
 
-        // 4. La preuve.
+        // 4. La preuve. Un objectif de lieu n'en a qu'une : l'écran l'annonce
+        // au lieu de la faire choisir, et la suite est ouverte d'emblée.
         XCTAssertTrue(
-            app.staticTexts["Que photographies-tu ?"].waitForExistence(timeout: 5),
-            "L'écran de choix de preuve ne s'est pas affiché"
+            app.staticTexts["Voici ce que tu photographieras"].waitForExistence(timeout: 5),
+            "L'écran de preuve ne s'est pas affiché"
         )
         let proofContinuer = app.buttons["proof-continue"]
-        XCTAssertFalse(proofContinuer.isEnabled, "La suite doit rester fermée sans preuve choisie")
-
         let preuve = app.buttons.matching(
             NSPredicate(format: "label BEGINSWITH %@", "Photo sur place")
         ).firstMatch
-        XCTAssertTrue(preuve.exists, "Preuve attendue absente de la liste")
-        preuve.tap()
-        XCTAssertTrue(proofContinuer.isEnabled, "La suite doit s'ouvrir dès qu'une preuve est choisie")
+        XCTAssertTrue(preuve.exists, "Preuve attendue absente de l'écran")
+        XCTAssertTrue(
+            proofContinuer.isEnabled,
+            "Une preuve unique est retenue d'office : la suite ne doit pas attendre un tap"
+        )
         attach(app, name: "07-choix-preuve")
 
         proofContinuer.tap()
@@ -158,7 +167,7 @@ final class OnboardingNavigationTests: XCTestCase {
             "L'écran d'engagement ne s'est pas affiché"
         )
         XCTAssertTrue(
-            app.staticTexts["Je me promets d'aller à la salle 3 fois par semaine."].exists,
+            app.staticTexts["Je me promets d'aller à la salle 3 fois cette semaine."].exists,
             "La promesse n'est pas rappelée à l'engagement"
         )
         XCTAssertTrue(

@@ -1,3 +1,4 @@
+import StripePayments
 import UIKit
 import UserNotifications
 
@@ -13,6 +14,17 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
+
+        // La cle publiable ne sait rien faire d'autre que presenter un
+        // formulaire de carte : elle est publique par conception, comme la cle
+        // anon de Supabase. Le debit, lui, passe par la cle secrete cote
+        // serveur, qui n'existe nulle part dans ce binaire.
+        if let key = AppConfig.stripePublishableKey {
+            STPAPIClient.shared.publishableKey = key
+        } else {
+            Log.payment.error("Cle publiable Stripe absente : le formulaire de carte ne s'ouvrira pas")
+        }
+
         return true
     }
 
@@ -39,5 +51,21 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
         [.banner, .sound, .list]
+    }
+
+    // L'utilisateur a touche la notification : il attend l'ecran de capture,
+    // pas l'accueil.
+    //
+    // Ce delegue ne peut pas presenter de vue — il n'est pas dans
+    // l'environnement SwiftUI. Il depose l'objectif dans ProofRouter, ou la
+    // vue viendra le chercher. Le cas du demarrage a froid marche par la meme
+    // occasion : le message arrive avant que le moindre ecran existe, et le
+    // routeur le garde jusque-la.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        let payload = response.notification.request.content.userInfo
+        await ProofRouter.shared.handle(payload: payload)
     }
 }

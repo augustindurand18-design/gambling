@@ -33,9 +33,17 @@ réelles (RLS, triggers, permissions de schéma) n'étaient pas visibles à la
 lecture et n'ont été trouvées qu'en lançant le schéma contre une vraie base.
 
 ```bash
-supabase test db                                      # 24 tests
-deno test supabase/functions --allow-env --no-check   # 21 tests
-./scripts/ios-test.sh                                 # 19 tests
+supabase test db                                      # 104 tests
+deno test supabase/functions --allow-env --no-check   # 59 tests
+./scripts/ios-test.sh                                 # 68 tests
+```
+
+Pour observer la boucle de notification en local, il faut d'abord un moyen de
+paiement et un appareil factices — sans quoi aucun objectif n'atteint
+`committed` et aucune fenêtre ne s'ouvre :
+
+```bash
+./scripts/dev-moyen-paiement.sh
 ```
 
 **Langue** : documentation, commentaires et commits en français ; code et
@@ -134,25 +142,98 @@ Capture **uniquement via caméra intégrée à l'app** (pas d'upload galerie) ; 
 - [x] **Squelette iOS** : modèles, machine à états client, config, APNs — 19 tests, compile sur simulateur
 
 ### En cours / à faire — code
-- [ ] RPC `transition_goal` (**dette connue** : `functions/_shared/db.ts` l'appelle déjà, elle n'existe pas en migration)
-- [ ] Edge Functions Stripe : `stripe-setup-intent`, `stripe-webhook`, `stripe-charge-stake`
-- [ ] Edge Function `verify-proof` (assemblage — les briques existent)
-- [ ] Notifications : `schedule-notifications`, `send-push`, `close-expired`
+- [x] RPC `transition_goal` (`0020`, réécrite par `0023`) et `submit_proof` (`0026`)
+- [x] **Planification et ouverture des fenêtres** (`0027`) : `app.tick_notifications()` sur pg_cron, toutes les minutes
+- [x] **`send-push`** — livraison seule, avec transport de repli. Jamais exécutée contre Apple (voir ci-dessous)
+- [x] **Caméra AVFoundation + pré-filtre Vision + envoi** (`Features/ProofCapture/`, `ProofsAPI`)
+- [x] **Edge Function `verify-proof`** — anti-triche, modèle, routage, verdict. Claude en production (Haiku → escalade Sonnet), Gemini comme fournisseur de test
+- [x] **Edge Functions Stripe** : `stripe-setup-intent`, `stripe-webhook`, `stripe-charge-stake`, plus le cycle de debit en base (`0029`, `0031`). Verifiees contre le vrai Stripe en mode test
 - [ ] `dispute-intake`, `weekly-assiduity`, `purge-proofs`
-- [ ] Caméra AVFoundation + pré-filtre Apple Vision
-- [ ] Interface iOS (dépend du design Figma)
+- [ ] Le reste de l'interface iOS (dépend du design Figma)
 - [ ] Abonnement IAP + RevenueCat (reporté après la bêta)
+
+### Dettes ouvertes par le chantier des notifications
+- **Aucune sortie pour un objectif jamais notifié.** Si la fenêtre ne s'ouvre
+  pas (cron arrêté, aucun appareil enregistré), l'objectif reste `committed` et
+  sa mise reste `active` indéfiniment. On refuse délibérément de le rejeter :
+  ce serait débiter quelqu'un pour notre panne. La sortie honnête serait
+  `committed → human_review`, à ajouter **des deux côtés** (`0015` et
+  `GoalStateMachine.swift`).
+- **Objets orphelins dans le bucket.** Envoi du fichier réussi puis
+  `submit_proof` refusée : l'objet reste, sans ligne qui le désigne et sans
+  droit de suppression client. À traiter dans `purge-proofs`.
+- **`send-push` n'est pas planifiée.** L'appeler depuis Postgres demanderait
+  `net.http_post` avec une clé de service, or `[db.vault]` est commenté et le
+  dépôt est public. Invocation manuelle pour l'instant.
 
 ### À faire — hors code (bloquant à terme)
 - [ ] **Compte Stripe** (mode test) — bloque tout le paiement
-- [ ] **Compte Apple Developer** — bloque TestFlight, push réels, Sign in with Apple sur appareil
+- [ ] **Compte Apple Developer** — type **Individual** (voir décision 2026-09-06). Titulaire : Augustin, Apple ID pro dédié + 2FA. Bloque TestFlight, push réels, Sign in with Apple sur appareil
 - [ ] Question écrite à Apple : la mécanique de mise est-elle du « real money gaming » ?
 - [ ] Consultation juridique (jeu d'argent / clause pénale / consentement débit / RGPD)
 - [ ] Design iOS (onboarding + écrans de consentement en priorité)
-- [ ] Projet Supabase cloud région Francfort (local uniquement pour l'instant)
+- [x] Projet Supabase distant (voir « La base distante » ci-dessous)
+
+## La base distante — on ne travaille plus en local (2026-09-06)
+
+**Le développement se fait désormais contre le projet Supabase distant.** La
+pile locale n'est plus la référence : elle peut servir à essayer une migration
+avant de la pousser, jamais à valider que l'app marche.
+
+| | |
+|---|---|
+| Projet | **Objectify**, ref `gdqzpjlexyvtamrtergk` |
+| Organisation | celle du collaborateur (Jules) |
+| Région | **eu-west-1 (Irlande)** — pas Francfort, contrairement à la décision du 2026-09-02 |
+| URL | `https://gdqzpjlexyvtamrtergk.supabase.co` |
+
+`ios/Config/Secrets.xcconfig` pointe dessus. Ce fichier est **gitignoré** :
+chacun renseigne le sien, la clé anon n'entre jamais dans le dépôt public.
+
+**La base est partagée avec un collaborateur.** Trois conséquences :
+
+1. **Prévenir avant de pousser.** Deux `db push` simultanés se marchent dessus,
+   et l'ordre d'application n'est plus garanti.
+2. **Vérifier l'historique avant d'écrire** : `supabase migration list --linked`.
+   Une migration distante sans fichier local signale que quelqu'un a poussé
+   autrement — c'est arrivé le 2026-09-05, où `0025` avait été appliquée sous
+   un numéro horodaté et faisait croire à une divergence de schéma.
+3. **Ne jamais modifier une migration déjà poussée**, la règle vaut d'autant
+   plus qu'un autre l'a peut-être déjà appliquée.
+
+**Ce qui n'est pas encore sur le distant** : aucune Edge Function déployée
+(`functions list` renvoie vide), donc ni `stripe-setup-intent`, ni
+`stripe-charge-stake`, ni `verify-proof`, ni `send-push`, ni `stripe-webhook`.
+Tout ce qui en dépend échoue côté app avec un message générique.
+
+**Les secrets ne se déduisent pas de `supabase/.env`**, qui ne vaut que pour le
+local. Sur le distant, `SUPABASE_URL`, `SUPABASE_ANON_KEY` et
+`SUPABASE_SERVICE_ROLE_KEY` sont injectées automatiquement — Supabase refuse
+qu'on les pose. Restent à définir : `STRIPE_SECRET_KEY`,
+`STRIPE_WEBHOOK_SECRET` et la clé du fournisseur de vision pour `verify-proof`.
+Le secret de webhook du `.env` vient de `stripe listen` et **ne vaut rien pour
+un endpoint distant** : il faut celui de l'endpoint déclaré dans Stripe.
+
+**`stripe-webhook` se déploie avec `--no-verify-jwt`.** Stripe l'appelle sans
+jeton Supabase ; sans ce drapeau, chaque notification part en 401. Aucune
+section `[functions]` dans `config.toml` ne le fait à notre place.
+
+**L'auth par e-mail dépend de réglages qui ne sont pas dans le dépôt.**
+`config.toml` (SMTP Resend, `otp_length = 6`, gabarits `{{ .Token }}`) ne
+configure que le local ; le distant se règle par `supabase config push` ou à la
+main dans le Dashboard. Un projet hébergé ne lit pas les `content_path`
+locaux : si le code à six chiffres est remplacé par un lien, c'est là qu'il
+faut regarder. Et un envoi vers une adresse inexistante met celle-ci sur la
+**liste de suppression de Resend** — tout envoi ultérieur vers elle est
+abandonné en silence, même après correction.
 
 ## Décisions
 _(date + décision + raison)_
+- 2026-09-06 : **on développe contre la base distante**, plus en local. Le
+  projet est `gdqzpjlexyvtamrtergk` (Objectify), en **eu-west-1 (Irlande)** et
+  non à Francfort comme décidé le 2026-09-02 : la région effective contredit la
+  décision écrite, à trancher avant la bêta. La base est **partagée avec le
+  collaborateur** — voir « La base distante » pour ce que ça impose.
 - 2026-09-01 : contraintes projet + 2 filtres (pulsion primaire, boucle virale) + anti-pattern "plateforme d'attention".
 - 2026-09-02 : **idée verrouillée** (commitment device avec preuve IA + argent en jeu).
 - 2026-09-02 : abonnement 25 €→5 € formulé en **remise d'assiduité**, pas en pénalité.
@@ -161,11 +242,35 @@ _(date + décision + raison)_
 - 2026-09-02 : objectifs limités au **strictement vérifiable** (photo, géofence, Screen Time, exports d'apps).
 - 2026-09-02 : **app 100 % native, tout in-app, commission Apple acceptée. Abo = IAP StoreKit 2 (15 % SBP). Mises = Stripe. Paddle abandonné. Cible = France.**
 - 2026-09-02 : prix variable 25 €→5 € géré via **2 produits StoreKit dans un même groupe d'abonnement** (bascule au renouvellement) + offres promo. Revoir la voie DMA UE seulement si trop rigide.
+- 2026-09-05 : **audit des preuves du catalogue** (42 → 19). Retrait de toutes
+  les preuves de « matériel » et de « décor » — un sac, des chaussures, un badge
+  se photographient sans avoir fait l'objectif — et de **tous les selfies**. Un
+  objectif de lieu se prouve par une seule photo sur place. La famille « Me
+  réveiller » fusionne en un objectif unique : ses déclinaisons n'étaient que
+  des façons de prouver la même promesse. Nombre de preuves désormais variable,
+  jamais un quota. → `docs/objectifs-verification.md` §7.
+- 2026-09-06 : **l'ouverture de la fenêtre de preuve passe en SQL** (`0027`,
+  pg_cron), et non plus dans `send-push` comme `docs/architecture.md` le
+  prévoyait. Faire porter la transition `committed → proof_window_open` par la
+  livraison APNs mettait une panne d'Apple sur le chemin critique de l'argent :
+  fenêtre jamais ouverte → soumission impossible → échéance dépassée → débit.
+  `send-push` ne fait plus que livrer, et son échec est sans effet sur l'état.
+  Corollaire utile : toute la chaîne devient vérifiable en local sans compte
+  Apple Developer.
+- 2026-09-06 : **délai de soumission fixé à 15 min**, tolérance d'horloge de
+  120 s accordée par `submit_proof` — refuser à la seconde près une preuve que
+  l'anti-triche juge légitime serait l'invariant 2 à l'envers.
+- 2026-09-06 : **compte Apple Developer = Individual**, pas Organization. Raison :
+  l'Organization exige un numéro D-U-N-S (délai 1-2 semaines) qui ferait sauter
+  la cible bêta. Une seule cotisation 99 €/an couvre les 2 devs — le second est
+  ajouté dans App Store Connect (Users and Access) pour TestFlight ; le partage
+  de signature se fait via fastlane match, pas d'échange de `.p12`. Migration
+  vers Organization possible plus tard sans perdre l'app.
 - 2026-09-03 : **plafond par objectif porté de 30 € à 100 €** (roue de mise de 5 € à 100 €, pas de 5 €). S'applique aux nouveaux profils uniquement — migration `0019`. Le plafond mensuel reste à 150 €, à revoir : il n'autorise plus qu'une mise maximale par mois.
 
 ## Stack pressentie (en cours de décision — 2026-09-02)
 - **iOS** : Swift + SwiftUI (iOS 17+). Natif obligatoire à cause de FamilyControls/DeviceActivity (Screen Time), CoreLocation (géofence), AVFoundation (caméra in-app anti-triche), StoreKit 2.
-- **Backend** : Supabase (Postgres + Auth + Storage + Edge Functions TS/Deno), **région UE (Frankfurt)**, pg_cron pour les jobs hebdo.
+- **Backend** : Supabase (Postgres + Auth + Storage + Edge Functions TS/Deno), pg_cron pour les jobs hebdo. Région décidée : Francfort ; **région réellement en service : eu-west-1 (Irlande)** — voir « La base distante ».
 - **IA vérification** : Claude vision (Haiku 1er passage → Sonnet en escalade) via Edge Function (clé API côté serveur) ; Apple Vision on-device en pré-filtre gratuit.
 - **Paiement** : **abo = Apple IAP via StoreKit 2 + RevenueCat** (reçus/entitlements). **Mises = Stripe** (PaymentSheet native + Apple Pay, SetupIntent pour stocker la carte, PaymentIntent off-session au moment de l'échec).
 - **Notifications** : APNs planifiées **côté serveur** (heure aléatoire non prédictible).
@@ -213,6 +318,13 @@ Toutes provisoires, isolées en constantes. À arbitrer (voir `docs/architecture
 | Seuil de confiance du modèle | 0,8 | `routing.ts` |
 | Objectifs/semaine pour la remise | 3 | `app.assiduity_threshold()` |
 | Rétention des photos | 60 j | `purge-proofs` (à écrire) |
+| Délai de soumission d'une preuve | 15 min | `app.proof_window_seconds()`, `MAX_CAPTURE_DELAY_SEC`, `ProofWindow.duration` |
+| Tolérance d'horloge | 120 s | `app.proof_clock_grace_seconds()`, `CLOCK_SKEW_TOLERANCE_SEC` |
+| Fenêtre de contestation | 48 h | `app.dispute_window_hours()` |
+
+**Le délai de soumission vit à trois endroits** (base, vérification, iOS) et
+aucune vérification automatique ne détecte une divergence — chaque côté a un
+test qui assène le littéral 900. Même remarque pour la tolérance d'horloge.
 
 ## Conventions de travail
 - Documentation, commentaires et commits en **français** ; code et schéma en **anglais** ; textes utilisateur en français.

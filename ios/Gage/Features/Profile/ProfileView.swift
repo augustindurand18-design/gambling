@@ -12,6 +12,14 @@ struct ProfileView: View {
 
     @Environment(\.dismiss) private var dismiss
 
+    /// Etat du compte, charge au premier affichage. Nul tant qu'il n'est pas
+    /// arrive : les lignes affichent alors leur libelle d'attente plutot
+    /// qu'une valeur inventee.
+    @State private var account: AccountState?
+    @State private var isEnrollingCard = false
+    @State private var isChoosingCharity = false
+    @State private var charityName: String?
+
     var body: some View {
         NavigationStack {
             ScreenBackground(glow: .topTrailing) {
@@ -29,6 +37,16 @@ struct ProfileView: View {
                     .padding(.bottom, Theme.Spacing.large)
                 }
                 .scrollIndicators(.hidden)
+            }
+            .task { await loadAccount() }
+            .sheet(isPresented: $isEnrollingCard) {
+                CardEnrollmentView(
+                    onEnrolled: { Task { await loadAccount() } },
+                    onSkip: nil
+                )
+            }
+            .sheet(isPresented: $isChoosingCharity) {
+                CharityPickerView { _ in Task { await loadAccount() } }
             }
             .navigationTitle("Profil")
             .navigationBarTitleDisplayMode(.inline)
@@ -68,6 +86,30 @@ struct ProfileView: View {
         .padding(.top, Theme.Spacing.small)
     }
 
+    /// « Visa •••• 4242 », ou l'invitation a en enregistrer une.
+    private var cardLabel: String {
+        guard let account else { return "…" }
+        guard let last4 = account.pmLast4 else { return "À enregistrer" }
+        return "\(account.pmBrand?.capitalized ?? "Carte") •••• \(last4)"
+    }
+
+    private var charityLabel: String {
+        guard account != nil else { return "…" }
+        return charityName ?? "À choisir"
+    }
+
+    private func loadAccount() async {
+        #if DEBUG
+        if SessionStore.isUITesting { return }
+        #endif
+        account = try? await ProfileAPI.shared.load()
+        if let id = account?.defaultCharityID {
+            charityName = try? await ProfileAPI.shared.charities().first { $0.id == id }?.name
+        } else {
+            charityName = nil
+        }
+    }
+
     // MARK: - Sections
 
     private var engagement: some View {
@@ -75,16 +117,22 @@ struct ProfileView: View {
             SettingsRow(
                 symbol: "target",
                 title: "Plafond par objectif",
-                accessory: .value(Money.format(cents: BusinessRules.defaultPerGoalCapCents))
+                accessory: .value(Money.format(cents: account?.perGoalCapCents ?? BusinessRules.defaultPerGoalCapCents))
             )
             SettingsDivider()
             SettingsRow(
                 symbol: "calendar",
                 title: "Plafond mensuel",
-                accessory: .value(Money.format(cents: BusinessRules.defaultMonthlyCapCents))
+                accessory: .value(Money.format(cents: account?.monthlyCapCents ?? BusinessRules.defaultMonthlyCapCents))
             )
             SettingsDivider()
-            SettingsRow(symbol: "creditcard", title: "Moyen de paiement", accessory: .comingSoon)
+            SettingsRow(
+                symbol: "creditcard",
+                title: "Moyen de paiement",
+                accessory: .value(cardLabel)
+            ) {
+                isEnrollingCard = true
+            }
             SettingsDivider()
             SettingsRow(
                 symbol: "heart",
@@ -92,7 +140,13 @@ struct ProfileView: View {
                 accessory: .value("\(BusinessRules.charityBps / 100) %")
             )
             SettingsDivider()
-            SettingsRow(symbol: "building.columns", title: "Association choisie", accessory: .comingSoon)
+            SettingsRow(
+                symbol: "building.columns",
+                title: "Association choisie",
+                accessory: .value(charityLabel)
+            ) {
+                isChoosingCharity = true
+            }
         }
     }
 
