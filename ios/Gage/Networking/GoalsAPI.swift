@@ -276,6 +276,33 @@ extension GoalsAPI {
         Log.goal.debug("Objectifs créés : \(created.count, privacy: .public)")
         return created
     }
+
+    /// Supprime des brouillons qui n'ont pas pu être engagés.
+    ///
+    /// Créer les objectifs puis les engager n'est pas atomique : si
+    /// `commit_goal` refuse — plafond mensuel atteint, incident de carte — les
+    /// brouillons resteraient sur l'accueil, et une nouvelle tentative en
+    /// déposerait une série de plus. La RLS n'autorise la suppression que
+    /// tant que l'objectif est en `draft`, donc rien d'engagé ne risque de
+    /// disparaître ici.
+    ///
+    /// L'échec du ménage est journalisé, jamais remonté : l'erreur qui
+    /// intéresse l'utilisateur est celle qui a fait échouer l'engagement.
+    func deleteDrafts(ids: [UUID]) async {
+        guard !ids.isEmpty else { return }
+        do {
+            try await client
+                .from("goals")
+                .delete()
+                .in("id", values: ids)
+                .eq("state", value: "draft")
+                .execute()
+        } catch {
+            Log.goal.error(
+                "Brouillons orphelins non supprimés: \(error.localizedDescription, privacy: .public)"
+            )
+        }
+    }
 }
 
 /// Objectif tout juste cree, encore en brouillon.

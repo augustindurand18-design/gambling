@@ -231,8 +231,17 @@ struct CommitmentView: View {
                 }
 
                 let goals = try await GoalsAPI.shared.createGoals(plan: plan)
-                try await engage(goals, charityID: account.defaultCharityID,
-                                 cardLast4: account.pmLast4)
+                do {
+                    try await engage(goals, charityID: account.defaultCharityID,
+                                     cardLast4: account.pmLast4)
+                } catch {
+                    // L'engagement refusé laisse des brouillons derrière lui :
+                    // sans ce ménage, chaque tentative en dépose une série de
+                    // plus sur l'accueil. Ceux déjà engagés sont protégés par
+                    // la RLS, qui ne laisse supprimer que les `draft`.
+                    await GoalsAPI.shared.deleteDrafts(ids: goals.map(\.id))
+                    throw error
+                }
                 finish()
             } catch {
                 isSaving = false
