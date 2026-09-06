@@ -15,11 +15,22 @@ struct PaymentAPI: Sendable {
         let setupIntentClientSecret: String
         let ephemeralKey: String
         let customerID: String
+        /// Clé publiable du compte qui vient de créer ce SetupIntent.
+        ///
+        /// Elle voyage avec le client secret parce que les deux doivent venir
+        /// du même compte Stripe : une clé publiable dépareillée fait échouer
+        /// le formulaire sur un message générique en anglais, au dernier
+        /// écran, juste avant que quelqu'un ne donne sa carte.
+        ///
+        /// Nulle tant que le secret `STRIPE_PUBLISHABLE_KEY` n'est pas défini
+        /// sur le projet ; on retombe alors sur la valeur locale.
+        let publishableKey: String?
 
         enum CodingKeys: String, CodingKey {
             case setupIntentClientSecret = "setup_intent_client_secret"
             case ephemeralKey = "ephemeral_key"
             case customerID = "customer_id"
+            case publishableKey = "publishable_key"
         }
     }
 

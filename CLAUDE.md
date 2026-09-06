@@ -234,9 +234,21 @@ message apparaît — lire le nouveau message, il a changé.
 local. Sur le distant, `SUPABASE_URL`, `SUPABASE_ANON_KEY` et
 `SUPABASE_SERVICE_ROLE_KEY` sont injectées automatiquement — Supabase refuse
 qu'on les pose. Restent à définir : `STRIPE_SECRET_KEY`,
-`STRIPE_WEBHOOK_SECRET` et la clé du fournisseur de vision pour `verify-proof`.
+`STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` et la clé du fournisseur de
+vision pour `verify-proof`.
 Le secret de webhook du `.env` vient de `stripe listen` et **ne vaut rien pour
 un endpoint distant** : il faut celui de l'endpoint déclaré dans Stripe.
+
+**La clé publiable Stripe vient du serveur** (2026-09-06). `stripe-setup-intent`
+la renvoie à côté du client secret, et l'application la pose sur le SDK juste
+avant d'ouvrir le formulaire ; `STRIPE_PUBLISHABLE_KEY` dans
+`ios/Config/Secrets.xcconfig` n'est plus qu'un secours. La raison n'est pas la
+confidentialité — cette clé est publique par conception — mais l'appariement :
+elle doit venir du **même compte** que la clé secrète qui a créé le SetupIntent.
+Une clé dépareillée, ou vide sur le poste d'un développeur, ne se voyait qu'au
+dernier écran, sur « There was an unexpected error » en anglais, au moment
+précis où l'on demande une carte. C'est arrivé le 2026-09-06 sur le poste du
+collaborateur.
 
 **`stripe-webhook` se déploie avec `--no-verify-jwt`.** Stripe l'appelle sans
 jeton Supabase ; sans ce drapeau, chaque notification part en 401. Aucune

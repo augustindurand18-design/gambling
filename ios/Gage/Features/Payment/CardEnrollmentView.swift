@@ -155,6 +155,21 @@ struct CardEnrollmentView: View {
         do {
             let session = try await PaymentAPI.shared.setupSession()
 
+            // La clé publiable vient du serveur, pas de la configuration
+            // locale : elle doit provenir du compte Stripe qui vient de créer
+            // ce SetupIntent. Une clé dépareillée — ou absente du fichier
+            // local d'un poste — ne se voyait qu'ici, sur un message
+            // générique en anglais, au moment précis où l'on demande une
+            // carte. La valeur locale ne sert plus que de secours.
+            if let key = session.publishableKey ?? AppConfig.stripePublishableKey {
+                STPAPIClient.shared.publishableKey = key
+            } else {
+                throw AppError.server(
+                    message: "Le service de paiement n'est pas configuré. "
+                        + "Préviens-nous, il n'y a rien à faire de ton côté."
+                )
+            }
+
             var configuration = PaymentSheet.Configuration()
             configuration.merchantDisplayName = "Gage"
             configuration.customer = .init(
