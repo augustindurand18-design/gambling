@@ -87,8 +87,28 @@ targets:
     # `merchant.com.augustindurand.gage` n'existe pas encore sur
     # developer.apple.com : le declarer ici ferait echouer la signature.
     # Les deux cles restent a remettre le jour venu, voir Gage.entitlements.
+    # Les droits se declarent ICI, pas dans le fichier. XcodeGen *genere*
+    # Gage/Gage.entitlements a partir de `properties` : un `path` sans
+    # `properties` produit un dictionnaire vide qui ecrase le fichier ecrit a
+    # la main, a chaque `xcodegen generate`. Le profil de provisioning portait
+    # bien `aps-environment`, mais l'application ne le reclamait plus — aucune
+    # notification n'arrivait et rien dans la compilation ne le signalait.
+    #
+    # `development` vaut pour un build Xcode et pour TestFlight ; l'App Store
+    # exige `production`.
+    #
+    # A ajouter le jour ou l'identifiant marchand existe sur
+    # developer.apple.com et est associe au compte Stripe — le declarer avant
+    # fait echouer la signature :
+    #   com.apple.developer.in-app-payments: [merchant.com.augustindurand.gage]
     entitlements:
       path: Gage/Gage.entitlements
+      properties:
+        aps-environment: development
+    attributes:
+      SystemCapabilities:
+        com.apple.Push:
+          enabled: 1
     dependencies:
       - package: Supabase
         product: Supabase
