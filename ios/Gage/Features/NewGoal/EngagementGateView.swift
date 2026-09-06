@@ -36,8 +36,14 @@ struct EngagementGateView: View {
     private enum Phase: Equatable {
         case signIn
         case card
-        /// La carte est partie chez Stripe ; on attend que le compte la porte.
-        case confirming
+        /// On lit le profil pour savoir ce qu'il reste a faire.
+        ///
+        /// `afterEnrollment` dit d'ou l'on vient, et ce n'est pas la meme
+        /// attente : apres une carte tout juste saisie, il faut laisser au
+        /// webhook le temps de l'ecrire ; apres une simple connexion, une
+        /// lecture suffit, et l'absence de carte n'est pas un retard mais une
+        /// etape qui reste a faire.
+        case confirming(afterEnrollment: Bool)
         case failed(String)
     }
 
@@ -46,13 +52,18 @@ struct EngagementGateView: View {
         case .signIn:
             // Pas de renoncement propose : on est deja au milieu d'un geste
             // engage. Le retour de l'ecran referme la feuille.
-            SignInView(onSignedIn: { step = .card })
+            //
+            // La connexion ne mene pas droit a la carte : quelqu'un qui revient
+            // en a deja une, et la lui redemander apres le code lui ferait
+            // croire que son compte a ete perdu. C'est `confirming` qui
+            // tranche, en lisant le profil.
+            SignInView(onSignedIn: { step = .confirming(afterEnrollment: false) })
 
         case .card:
-            CardEnrollmentView(onEnrolled: { step = .confirming })
+            CardEnrollmentView(onEnrolled: { step = .confirming(afterEnrollment: true) })
 
-        case .confirming:
-            waiting
+        case .confirming(let afterEnrollment):
+            waiting(afterEnrollment: afterEnrollment)
 
         case .failed(let message):
             failure(message)
@@ -61,26 +72,28 @@ struct EngagementGateView: View {
 
     // MARK: - Attente du webhook
 
-    private var waiting: some View {
+    private func waiting(afterEnrollment: Bool) -> some View {
         ScreenBackground {
             VStack(spacing: Theme.Spacing.medium) {
                 ProgressView()
                     .controlSize(.large)
                     .tint(Theme.Colors.brand)
 
-                Text("On vérifie ta carte…")
-                    .font(Theme.Fonts.cardTitle)
-                    .foregroundStyle(Theme.Colors.ink)
+                if afterEnrollment {
+                    Text("On vérifie ta carte…")
+                        .font(Theme.Fonts.cardTitle)
+                        .foregroundStyle(Theme.Colors.ink)
 
-                Text("Quelques secondes, le temps que ta banque confirme.")
-                    .font(Theme.Fonts.cardSubtitle)
-                    .foregroundStyle(Theme.Colors.inkMuted)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 260)
+                    Text("Quelques secondes, le temps que ta banque confirme.")
+                        .font(Theme.Fonts.cardSubtitle)
+                        .foregroundStyle(Theme.Colors.inkMuted)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 260)
+                }
             }
             .padding(.horizontal, Theme.Spacing.screenHorizontal)
         }
-        .task { await waitForCard() }
+        .task { await settle(afterEnrollment: afterEnrollment) }
     }
 
     private func failure(_ message: String) -> some View {
@@ -93,7 +106,7 @@ struct EngagementGateView: View {
                     .fixedSize(horizontal: false, vertical: true)
 
                 PrimaryButton(title: "Réessayer", showsChevron: false) {
-                    step = .confirming
+                    step = .confirming(afterEnrollment: true)
                 }
 
                 Button("Fermer") { dismiss() }
@@ -104,17 +117,25 @@ struct EngagementGateView: View {
         }
     }
 
-    /// Attend que le profil porte le moyen de paiement.
+    /// Lit le profil et decide de la suite.
     ///
-    /// `CardEnrollmentView` sait seulement que Stripe a accepte la carte ; ce
-    /// qui autorise un debit, c'est `profiles.default_payment_method_id`, et
-    /// c'est le webhook `setup_intent.succeeded` qui l'ecrit. Entre les deux
-    /// il y a un aller-retour reseau que rien ne borne. Enchainer sur
-    /// `commit_goal` sans attendre le ferait refuser par intermittence, avec
-    /// un message parlant d'une carte que l'utilisateur vient pourtant de
-    /// saisir — le pire des messages, puisqu'il accuse a tort.
-    private func waitForCard() async {
-        for attempt in 0..<20 {
+    /// Apres une simple connexion, une lecture suffit : quelqu'un qui revient
+    /// porte deja sa carte, et l'engagement peut repartir sans qu'on lui ait
+    /// rien demande de plus que son code. Lui remontrer le formulaire de carte
+    /// lui ferait croire que son compte a ete perdu.
+    ///
+    /// Apres une carte tout juste saisie, il faut attendre. `CardEnrollmentView`
+    /// sait seulement que Stripe a accepte la carte ; ce qui autorise un debit,
+    /// c'est `profiles.default_payment_method_id`, et c'est le webhook
+    /// `setup_intent.succeeded` qui l'ecrit. Entre les deux il y a un
+    /// aller-retour reseau que rien ne borne. Enchainer sur `commit_goal` sans
+    /// attendre le ferait refuser par intermittence, avec un message parlant
+    /// d'une carte que l'utilisateur vient pourtant de saisir — le pire des
+    /// messages, puisqu'il accuse a tort.
+    private func settle(afterEnrollment: Bool) async {
+        let attempts = afterEnrollment ? 20 : 1
+
+        for attempt in 0..<attempts {
             if attempt > 0 {
                 try? await Task.sleep(for: .seconds(1))
             }
@@ -125,6 +146,13 @@ struct EngagementGateView: View {
                 onReady()
                 return
             }
+        }
+
+        guard afterEnrollment else {
+            // Compte sans carte : ce n'est pas un retard, c'est l'etape qui
+            // reste a faire.
+            step = .card
+            return
         }
 
         // Vingt secondes sans retour : on ne dit pas que la carte a echoue, on
