@@ -11,6 +11,13 @@ struct ProofCaptureView: View {
     var onFinished: () -> Void
 
     @State private var camera = CameraSession()
+    /// Photo reellement capturee, affichee des qu'elle existe.
+    ///
+    /// Le viseur en direct continuait de tourner pendant l'envoi : rien ne
+    /// confirmait que la photo etait prise, et l'ecran montrait autre chose
+    /// que ce qui partait. Sur un ecran ou une mise est en jeu, l'utilisateur
+    /// doit voir exactement ce qu'il envoie.
+    @State private var captured: UIImage?
     @State private var phase: Phase = .framing
     @State private var now = Date.now
     @Environment(\.dismiss) private var dismiss
@@ -75,27 +82,34 @@ struct ProofCaptureView: View {
     @ViewBuilder
     private var viewfinder: some View {
         ZStack {
-            switch camera.state {
-            case .ready:
-                #if targetEnvironment(simulator)
-                simulatorPlaceholder
-                #else
-                CameraPreview(session: camera.session)
-                #endif
+            if let captured {
+                Image(uiImage: captured)
+                    .resizable()
+                    .scaledToFill()
+                    .accessibilityLabel("Photo envoyée")
+            } else {
+                switch camera.state {
+                case .ready:
+                    #if targetEnvironment(simulator)
+                    simulatorPlaceholder
+                    #else
+                    CameraPreview(session: camera.session)
+                    #endif
 
-            case .denied:
-                message(
-                    "L'accès à l'appareil photo est refusé.",
-                    detail: "Une preuve ne peut être prise que dans l'application. Autorise la caméra dans les Réglages."
-                )
+                case .denied:
+                    message(
+                        "L'accès à l'appareil photo est refusé.",
+                        detail: "Une preuve ne peut être prise que dans l'application. Autorise la caméra dans les Réglages."
+                    )
 
-            case .unavailable(let reason):
-                message("Caméra indisponible", detail: reason)
+                case .unavailable(let reason):
+                    message("Caméra indisponible", detail: reason)
 
-            case .idle:
-                ProgressView()
-                    .controlSize(.large)
-                    .tint(Theme.Colors.brand)
+                case .idle:
+                    ProgressView()
+                        .controlSize(.large)
+                        .tint(Theme.Colors.brand)
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -186,7 +200,7 @@ struct ProofCaptureView: View {
                     .fixedSize(horizontal: false, vertical: true)
 
                 PrimaryButton(title: "Réessayer", showsChevron: false) {
-                    phase = .framing
+                    Task { await retry() }
                 }
 
                 Button("Fermer") { finish() }
@@ -208,6 +222,12 @@ struct ProofCaptureView: View {
             // ce que l'anti-triche mesure.
             let capturedAt = Date.now
             let jpeg = try await camera.capture(goalID: pending.goalID)
+
+            // Fige l'ecran sur ce qui part, avant meme le pre-filtre : c'est
+            // l'instant ou l'utilisateur doit voir sa photo, pas apres
+            // l'envoi. La camera n'a plus rien a filmer.
+            captured = UIImage(data: jpeg)
+            camera.stop()
 
             // Le pré-filtre ne bloque jamais l'envoi : son résultat accompagne
             // la preuve, il ne la juge pas.
@@ -247,6 +267,17 @@ struct ProofCaptureView: View {
                 #endif
             }
         }
+    }
+
+    /// Repart au cadrage : la photo figee s'efface et la camera redemarre.
+    ///
+    /// Les deux sont necessaires. Sans le premier, l'ecran garde l'image de
+    /// l'essai precedent ; sans le second, `camera.state` n'est plus `.ready`
+    /// et le bouton reste grise sur une image morte.
+    private func retry() async {
+        captured = nil
+        phase = .framing
+        await camera.start()
     }
 
     private func finish() {
