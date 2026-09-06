@@ -1,21 +1,23 @@
 import SwiftUI
 
-/// Premier lancement : l'accueil de bienvenue, puis la connexion.
+/// Premier lancement : l'accueil de bienvenue.
 ///
-/// Les deux boutons menent au meme ecran. Creer un compte et en retrouver un
-/// sont le meme appel cote serveur, et l'utilisateur n'a pas a se souvenir
-/// s'il est deja venu.
+/// « Commencer » ne demande plus de compte : il ouvre directement la
+/// composition d'un premier defi. Rien de ce qui s'y decide ne touche au
+/// serveur, et l'ecran d'engagement reclame le compte et la carte au moment
+/// de signer — quand l'utilisateur sait enfin ce qu'il achete.
 ///
-/// Le premier objectif ne se compose plus ici : il faut une session pour
-/// l'engager, puisque `commit_goal` est reservee au role authenticated. Une
-/// fois connecte, l'utilisateur arrive sur l'accueil et son etat vide l'invite
-/// a composer son premier defi.
+/// « Se connecter » reste a part : quelqu'un qui revient n'a pas a recomposer
+/// un objectif pour retrouver les siens.
 struct OnboardingFlowView: View {
+    /// « Commencer » : composer un premier defi, sans compte.
+    let onCompose: () -> Void
+
     @State private var isSigningIn = false
 
     var body: some View {
         WelcomeView(
-            onStart: { isSigningIn = true },
+            onStart: onCompose,
             onSignIn: { isSigningIn = true }
         )
         .fullScreenCover(isPresented: $isSigningIn) {
@@ -24,4 +26,4 @@ struct OnboardingFlowView: View {
     }
 }
 
-#Preview { OnboardingFlowView() }
+#Preview { OnboardingFlowView(onCompose: {}) }

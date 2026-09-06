@@ -13,20 +13,35 @@ final class OnboardingNavigationTests: XCTestCase {
 
     // MARK: - Connexion
 
-    /// L'accueil de bienvenue ne laisse plus entrer personne sans compte :
-    /// sans session, aucune requête ne passe la RLS, et `commit_goal` est
-    /// réservée au rôle authenticated.
-    func testCommencerDemandeUneAdresseEmail() {
-        let app = XCUIApplication()
-        // Sans ce drapeau, une session laissee dans le trousseau du simulateur
-        // ouvrirait l'accueil au lieu de l'ecran de bienvenue, et le test
-        // echouerait sans qu'aucun code n'ait change.
-        app.launchArguments += ["-uiTestSignedOut"]
-        app.launch()
+    /// « Commencer » ne demande plus rien : un nouveau venu compose son défi
+    /// avant d'avoir un compte. Le compte et la carte ne sont réclamés qu'au
+    /// moment de signer, par `EngagementGateView`.
+    func testCommencerOuvreLaCompositionSansCompte() {
+        let app = launchSignedOut()
 
         let commencer = app.buttons["Commencer"]
         XCTAssertTrue(commencer.waitForExistence(timeout: 10), "Écran d'accueil absent")
         commencer.tap()
+
+        XCTAssertTrue(
+            app.staticTexts["Qu'est-ce que tu te promets de faire ?"].waitForExistence(timeout: 5),
+            "« Commencer » doit ouvrir la composition, pas la connexion"
+        )
+        XCTAssertFalse(
+            app.textFields["email-field"].exists,
+            "Aucune adresse ne doit être demandée avant d'avoir composé un défi"
+        )
+        attach(app, name: "01-composition-sans-compte")
+    }
+
+    /// « Se connecter » reste le chemin de celui qui revient : lui n'a pas à
+    /// recomposer un objectif pour retrouver les siens.
+    func testSeConnecterDemandeUneAdresseEmail() {
+        let app = launchSignedOut()
+
+        let seConnecter = app.buttons["Se connecter"]
+        XCTAssertTrue(seConnecter.waitForExistence(timeout: 10), "Bouton de connexion absent")
+        seConnecter.tap()
 
         XCTAssertTrue(
             app.staticTexts["Ton adresse e-mail"].waitForExistence(timeout: 5),
@@ -43,28 +58,7 @@ final class OnboardingNavigationTests: XCTestCase {
         champ.typeText("alice@test.local")
 
         XCTAssertTrue(recevoir.isEnabled, "Une adresse plausible doit débloquer l'envoi")
-        attach(app, name: "01-connexion")
-    }
-
-    /// « Se connecter » et « Commencer » mènent au même écran : côté serveur
-    /// c'est le même appel, et l'utilisateur n'a pas à se souvenir s'il est
-    /// déjà venu.
-    func testSeConnecterMeneAuMemeEcran() {
-        let app = XCUIApplication()
-        // Sans ce drapeau, une session laissee dans le trousseau du simulateur
-        // ouvrirait l'accueil au lieu de l'ecran de bienvenue, et le test
-        // echouerait sans qu'aucun code n'ait change.
-        app.launchArguments += ["-uiTestSignedOut"]
-        app.launch()
-
-        let seConnecter = app.buttons["Se connecter"]
-        XCTAssertTrue(seConnecter.waitForExistence(timeout: 10), "Bouton de connexion absent")
-        seConnecter.tap()
-
-        XCTAssertTrue(
-            app.staticTexts["Ton adresse e-mail"].waitForExistence(timeout: 5),
-            "« Se connecter » doit mener au même écran que « Commencer »"
-        )
+        attach(app, name: "02-connexion")
     }
 
     // MARK: - Création d'un objectif
@@ -314,6 +308,18 @@ final class OnboardingNavigationTests: XCTestCase {
     private func launchSignedIn() -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += ["-uiTestSignedIn"]
+        app.launch()
+        return app
+    }
+
+    /// Ouvre l'application sur l'écran de bienvenue.
+    ///
+    /// Sans ce drapeau, une session laissée dans le trousseau du simulateur
+    /// ouvrirait l'accueil, et le test échouerait sans qu'aucun code n'ait
+    /// changé. Une session survit à la désinstallation de l'application.
+    private func launchSignedOut() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments += ["-uiTestSignedOut"]
         app.launch()
         return app
     }

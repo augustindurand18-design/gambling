@@ -8,6 +8,14 @@ import SwiftUI
 /// deja venu.
 struct SignInView: View {
 
+    /// Appele une fois la session ouverte.
+    ///
+    /// Nul dans le cas courant : `SessionStore` observe la session et bascule
+    /// l'application tout seul. L'ecran d'engagement, lui, presente cette vue
+    /// au milieu d'un parcours qu'il ne veut pas perdre, et a besoin de savoir
+    /// quand enchainer sur la carte.
+    var onSignedIn: (() -> Void)?
+
     private enum Step { case email, code }
 
     @Environment(\.dismiss) private var dismiss
@@ -187,12 +195,14 @@ struct SignInView: View {
         }
     }
 
-    /// Rien a faire de plus en cas de succes : l'ouverture de session est
-    /// captee par `SessionStore`, qui bascule l'application sur l'accueil.
+    /// En cas de succes, l'ouverture de session est captee par `SessionStore`,
+    /// qui bascule l'application sur l'accueil. `onSignedIn` ne sert qu'a
+    /// l'appelant qui presente cet ecran par-dessus un parcours en cours.
     private func verify() {
         run {
             do {
                 try await AuthAPI.shared.verify(code: code, for: email)
+                onSignedIn?()
             } catch {
                 // Demander un nouveau code annule le precedent. Quelqu'un qui
                 // a clique deux fois recoit deux e-mails et saisit souvent le

@@ -31,6 +31,7 @@ struct CommitmentView: View {
     @State private var signedAt: Date?
     @State private var isSaving = false
     @State private var errorMessage: String?
+    @State private var gateStep: EngagementGateView.Step?
 
     private var plan: GoalPlan { draft.plan }
     private var stakeAmountCents: Int { draft.stakeAmountCents }
@@ -99,6 +100,13 @@ struct CommitmentView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+        .sheet(item: $gateStep) { step in
+            EngagementGateView(startingAt: step) {
+                gateStep = nil
+                // Le geste a deja ete fait : on ne redemande pas de glisser.
+                commit()
+            }
+        }
     }
 
     private var proofRow: some View {
@@ -203,6 +211,12 @@ struct CommitmentView: View {
     /// La confirmation n'apparait qu'apres l'ecriture : afficher « tu t'es
     /// engage » sur un enregistrement qui a echoue ferait croire a quelqu'un
     /// qu'il a un objectif en cours alors qu'il n'en a aucun.
+    ///
+    /// C'est aussi le seul endroit du parcours qui exige un compte. Tout ce
+    /// qui precede se compose hors ligne : un nouveau venu ne rencontre le
+    /// formulaire de connexion et la carte qu'ici, une fois qu'il sait ce
+    /// qu'il promet et ce qu'il risque. Ce qui manque est demande par
+    /// `EngagementGateView`, et l'engagement reprend tout seul ensuite.
     private func commit() {
         guard !isSaving else { return }
         isSaving = true
@@ -218,12 +232,29 @@ struct CommitmentView: View {
             }
             #endif
 
+            // Sans session, rien ne passerait la RLS : on demande le compte
+            // avant d'interroger le profil, qui n'existe pas encore.
+            guard AuthAPI.shared.isSignedIn else {
+                openGate(at: .signIn)
+                return
+            }
+
             do {
                 let account = try await ProfileAPI.shared.load()
 
                 // Le refus se lit avant d'ecrire quoi que ce soit. Creer des
                 // brouillons pour echouer a les engager laisserait des
                 // objectifs orphelins sur l'accueil.
+                //
+                // Une carte absente n'est pas un refus, c'est une etape qui
+                // reste a faire : on l'ouvre au lieu de renvoyer l'utilisateur
+                // a un message. Un compte bloque, lui, se dit — il n'y a rien
+                // a saisir qui debloque la situation depuis ici.
+                if !account.stakeBlockActive, account.defaultPaymentMethodID == nil {
+                    openGate(at: .card)
+                    return
+                }
+
                 if let blocker = account.blocker {
                     isSaving = false
                     errorMessage = blocker
@@ -249,6 +280,15 @@ struct CommitmentView: View {
                     ?? "Impossible d'enregistrer ton objectif."
             }
         }
+    }
+
+    /// Ouvre ce qui manque, sans perdre le geste deja fait.
+    ///
+    /// Le curseur est relache — la feuille prend l'ecran — mais la signature
+    /// reste, et l'engagement repart de lui-meme a la fermeture.
+    private func openGate(at step: EngagementGateView.Step) {
+        isSaving = false
+        gateStep = step
     }
 
     /// Engage chaque seance : une mise et un consentement par objectif.

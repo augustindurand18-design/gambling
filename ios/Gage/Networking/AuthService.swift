@@ -39,6 +39,16 @@ struct AuthAPI: Sendable {
         client.auth.currentSession?.user.email
     }
 
+    /// Une session est-elle ouverte, ici et maintenant ?
+    ///
+    /// Lecture synchrone du jeton deja en memoire, sans aller-retour reseau :
+    /// l'ecran d'engagement s'en sert pour savoir s'il doit demander un compte
+    /// avant d'ecrire quoi que ce soit. Un jeton expire est renouvele au
+    /// premier appel qui en a besoin, et l'echec ressort la ou il compte.
+    var isSignedIn: Bool {
+        client.auth.currentSession != nil
+    }
+
     func signOut() async throws {
         do {
             try await client.auth.signOut()

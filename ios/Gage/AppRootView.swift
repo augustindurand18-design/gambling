@@ -11,6 +11,16 @@ import SwiftUI
 struct AppRootView: View {
     @State private var session = SessionStore()
 
+    /// Composition du premier defi, avant tout compte.
+    ///
+    /// Le parcours est presente **ici** et non depuis l'ecran de bienvenue :
+    /// la connexion survient au milieu, et la bascule `signedOut` →
+    /// `signedIn` remplace le contenu du `Group`. Un plein ecran pose sur
+    /// l'ecran de bienvenue disparaitrait avec lui, emportant l'objectif que
+    /// l'utilisateur vient de signer. Pose sur le `Group`, il traverse la
+    /// bascule sans broncher.
+    @State private var isComposingFirstGoal = false
+
     var body: some View {
         Group {
             switch session.state {
@@ -25,14 +35,17 @@ struct AppRootView: View {
                 }
 
             case .signedOut:
-                OnboardingFlowView()
+                OnboardingFlowView(onCompose: { isComposingFirstGoal = true })
 
             case .signedIn:
                 HomeView()
             }
         }
+        .fullScreenCover(isPresented: $isComposingFirstGoal) {
+            NewGoalFlowView { isComposingFirstGoal = false }
+        }
         .task { await session.observe() }
-        .task(id: isSignedIn) {
+        .task(id: wantsPushAuthorization) {
             // Sans jeton APNs enregistre, `app.open_due_proof_windows()`
             // refuse d'ouvrir la fenetre : elle ne lance pas un compte a
             // rebours qu'elle ne peut annoncer a personne. L'autorisation
@@ -41,7 +54,11 @@ struct AppRootView: View {
             // Redemande a chaque ouverture de session ET a chaque lancement :
             // le jeton change apres une restauration de sauvegarde ou une mise
             // a jour du systeme, et le serveur doit recevoir le nouveau.
-            guard isSignedIn else { return }
+            //
+            // Jamais pendant la composition du premier defi : l'alerte du
+            // systeme tomberait par-dessus le formulaire de carte, au moment
+            // precis ou l'on demande a quelqu'un sa confiance.
+            guard wantsPushAuthorization else { return }
             await PushAuthorization.requestIfNeeded()
         }
     }
@@ -49,6 +66,10 @@ struct AppRootView: View {
     private var isSignedIn: Bool {
         if case .signedIn = session.state { return true }
         return false
+    }
+
+    private var wantsPushAuthorization: Bool {
+        isSignedIn && !isComposingFirstGoal
     }
 }
 
