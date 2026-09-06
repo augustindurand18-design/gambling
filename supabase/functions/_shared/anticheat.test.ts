@@ -103,12 +103,21 @@ Deno.test("une validation nette est automatique sur une petite mise", () => {
   assertEquals(decision.route, "validated");
 });
 
+/**
+ * Configuration ou la revue humaine est ouverte.
+ *
+ * Elle est fermee par defaut depuis le 2026-09-06 : personne ne relit, et un
+ * doute non leve finissait valide 24 h plus tard de toute facon. Le mecanisme
+ * reste teste ici pour qu'il n'ait pas pourri le jour ou on le rouvrira.
+ */
+const WITH_REVIEW = { ...DEFAULT_ROUTING, humanReviewEnabled: true };
+
 Deno.test("une mise elevee passe par un humain quand un seuil existe", () => {
   const decision = routeVerdict({
     verdict: PASS,
     antiCheat: CLEAN,
     stakeAmountCents: 2_000,
-    config: { ...DEFAULT_ROUTING, humanReviewStakeThresholdCents: 2_000 },
+    config: { ...WITH_REVIEW, humanReviewStakeThresholdCents: 2_000 },
     random: never,
   });
   assertEquals(decision.route, "human_review");
@@ -136,6 +145,7 @@ Deno.test("une suspicion de fraude ne rejette jamais directement", () => {
     verdict: { ...FAIL, spoof_suspected: true },
     antiCheat: CLEAN,
     stakeAmountCents: 500,
+    config: WITH_REVIEW,
     random: never,
   });
   assertEquals(decision.route, "human_review");
@@ -147,6 +157,7 @@ Deno.test("un modele incertain ne rejette jamais", () => {
     verdict: { verdict: "uncertain", confidence: 0.9, reason: "?", spoof_suspected: false },
     antiCheat: CLEAN,
     stakeAmountCents: 500,
+    config: WITH_REVIEW,
     random: never,
   });
   assertEquals(decision.route, "human_review");
@@ -157,6 +168,7 @@ Deno.test("une confiance faible ne rejette jamais", () => {
     verdict: { ...FAIL, confidence: 0.5 },
     antiCheat: CLEAN,
     stakeAmountCents: 500,
+    config: WITH_REVIEW,
     random: never,
   });
   assertEquals(decision.route, "human_review");
@@ -168,6 +180,7 @@ Deno.test("un signal anti-triche fait basculer vers l'humain", () => {
     verdict: PASS,
     antiCheat: flagged,
     stakeAmountCents: 500,
+    config: WITH_REVIEW,
     random: never,
   });
   assertEquals(decision.route, "human_review");
@@ -190,10 +203,71 @@ Deno.test("l'audit aleatoire relit une part des validations", () => {
     verdict: PASS,
     antiCheat: CLEAN,
     stakeAmountCents: 500,
+    config: WITH_REVIEW,
     random: () => 0, // tombe toujours dans l'echantillon
   });
   assertEquals(decision.route, "human_review");
   assertEquals(decision.reason, "random_audit");
+});
+
+// ------------------------------------------------- revue humaine fermee
+
+Deno.test("sans revue humaine, un doute est valide et non rejete", () => {
+  // L'invariant 2 : on ne debite jamais sur un doute. Personne ne peut lever
+  // celui-ci, et `close_stale_reviews` le validait deja 24 h plus tard — on
+  // ne fait qu'annoncer le meme resultat tout de suite.
+  for (
+    const verdict of [
+      { ...FAIL, spoof_suspected: true },
+      { verdict: "uncertain" as const, confidence: 0.9, reason: "?", spoof_suspected: false },
+      { ...FAIL, confidence: 0.5 },
+    ]
+  ) {
+    const decision = routeVerdict({
+      verdict,
+      antiCheat: CLEAN,
+      stakeAmountCents: 500,
+      random: never,
+    });
+    assertEquals(decision.route, "validated");
+  }
+});
+
+Deno.test("le motif dit ce qui aurait du etre relu", () => {
+  // Sans cette trace, plus rien ne distinguerait une validation franche d'un
+  // doute qu'on a laisse passer faute de relecteur.
+  const decision = routeVerdict({
+    verdict: { ...FAIL, spoof_suspected: true },
+    antiCheat: CLEAN,
+    stakeAmountCents: 500,
+    random: never,
+  });
+  assertEquals(decision.reason, "no_review:spoof_suspected");
+});
+
+Deno.test("sans revue humaine, une fraude etablie rejette toujours", () => {
+  // La revue fermee ne desarme pas l'anti-triche : une image deja utilisee
+  // reste un rejet, sans jugement d'image.
+  const cheating = runAntiCheat(input({ duplicateCount: 3 }));
+  const decision = routeVerdict({
+    verdict: PASS,
+    antiCheat: cheating,
+    stakeAmountCents: 500,
+    random: never,
+  });
+  assertEquals(decision.route, "rejected");
+});
+
+Deno.test("sans revue humaine, l'audit aleatoire ne tire plus", () => {
+  // Le tirage ne ferait que retarder une validation certaine.
+  const decision = routeVerdict({
+    verdict: PASS,
+    antiCheat: CLEAN,
+    stakeAmountCents: 500,
+    random: () => 0,
+  });
+  assertEquals(decision.route, "validated");
+  assertEquals(decision.reason, "model_pass");
 });
 
 // ------------------------------------------------------------- parsing

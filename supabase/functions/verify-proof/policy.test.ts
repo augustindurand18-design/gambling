@@ -98,8 +98,15 @@ Deno.test("une panne de notre cote ne rejette jamais", () => {
   assertEquals(unavailableVerdict("API 500").spoof_suspected, false);
 });
 
-Deno.test("un modele indisponible envoie la preuve a un humain, pas a la poubelle", () => {
-  // La chaine complete : verdict de repli -> routage -> revue humaine.
+Deno.test("un modele indisponible ne rejette jamais la preuve", () => {
+  // La chaine complete : verdict de repli -> routage.
+  //
+  // La revue humaine etant fermee (2026-09-06), une panne du fournisseur
+  // VALIDE desormais la preuve au lieu de la faire relire. C'est lourd de
+  // consequences et c'est assume : l'invariant 2 interdit de debiter
+  // quelqu'un sur un doute, et une panne de notre cote est le doute le moins
+  // imputable a l'utilisateur qui soit. Le jour ou un tableau de revue
+  // existera, ce cas doit y retourner.
   const antiCheat = runAntiCheat({
     capturedAt: "2026-09-02T07:02:00Z",
     serverReceivedAt: "2026-09-02T07:02:30Z",
@@ -117,7 +124,11 @@ Deno.test("un modele indisponible envoie la preuve a un humain, pas a la poubell
     stakeAmountCents: 500,
   });
 
-  assertEquals(decision.route, "human_review");
+  assertEquals(decision.route, "validated");
+  // Le motif garde la trace de ce qui aurait du etre relu. Ici c'est le
+  // signal d'anti-triche qui parle en premier — la photo de ce cas n'a pas
+  // d'EXIF — avant meme que l'incertitude du modele soit examinee.
+  assertEquals(decision.reason, "no_review:anticheat_flags:exif_missing");
 });
 
 // --- Le choix du fournisseur ------------------------------------------------

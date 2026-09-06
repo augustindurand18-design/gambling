@@ -26,6 +26,21 @@ export interface RoutingConfig {
   humanReviewStakeThresholdCents: number | null;
   /** Part des validations relue au hasard, pour la dissuasion. */
   randomAuditRate: number;
+  /**
+   * La revue humaine est-elle ouverte ?
+   *
+   * `false` la ferme entièrement : tout ce qui y serait parti est **validé**.
+   * Le sens n'est pas un choix de confort — l'invariant 2 dit qu'on ne débite
+   * jamais sur un doute, et il n'y a personne pour lever celui-ci. Ces
+   * preuves finissaient déjà validées 24 h plus tard par
+   * `app.close_stale_reviews()` : les valider tout de suite est le même
+   * résultat, annoncé honnêtement.
+   *
+   * Ce que cela coûte : une falsification soupçonnée est validée elle aussi,
+   * et la relecture aléatoire ne dissuade plus rien. À rouvrir le jour où un
+   * tableau de revue existe. Décision du 2026-09-06.
+   */
+  humanReviewEnabled: boolean;
 }
 
 export const DEFAULT_ROUTING: RoutingConfig = {
@@ -34,6 +49,7 @@ export const DEFAULT_ROUTING: RoutingConfig = {
   // 2026-09-06 dans CLAUDE.md.
   humanReviewStakeThresholdCents: null,
   randomAuditRate: 0.05,
+  humanReviewEnabled: false,
 };
 
 export interface RoutingInput {
@@ -55,6 +71,17 @@ export function routeVerdict(input: RoutingInput): RoutingDecision {
   const random = input.random ?? Math.random;
   const { verdict, antiCheat } = input;
 
+  /**
+   * Escalade vers un humain, ou validation si ce poste n'est pas tenu.
+   *
+   * Le motif est conservé tel quel dans les deux cas : c'est lui qui dira,
+   * plus tard, ce qui aurait dû être relu et ne l'a pas été.
+   */
+  const escalate = (reason: string): RoutingDecision =>
+    config.humanReviewEnabled
+      ? { route: "human_review", reason }
+      : { route: "validated", reason: `no_review:${reason}` };
+
   // Fraude établie par construction : preuve hors fenêtre, image déjà
   // utilisée. Aucun jugement d'image n'est nécessaire.
   if (antiCheat.hardReject) {
@@ -64,25 +91,19 @@ export function routeVerdict(input: RoutingInput): RoutingDecision {
   // Une suspicion de falsification ne suffit pas à rejeter : accuser
   // quelqu'un de fraude à tort est le pire résultat possible pour ce produit.
   if (verdict.spoof_suspected) {
-    return { route: "human_review", reason: "spoof_suspected" };
+    return escalate("spoof_suspected");
   }
 
   if (antiCheat.flags.length > 0) {
-    return {
-      route: "human_review",
-      reason: `anticheat_flags:${antiCheat.flags.join(",")}`,
-    };
+    return escalate(`anticheat_flags:${antiCheat.flags.join(",")}`);
   }
 
   if (verdict.verdict === "uncertain") {
-    return { route: "human_review", reason: "model_uncertain" };
+    return escalate("model_uncertain");
   }
 
   if (verdict.confidence < config.confidenceThreshold) {
-    return {
-      route: "human_review",
-      reason: `low_confidence:${verdict.confidence.toFixed(2)}`,
-    };
+    return escalate(`low_confidence:${verdict.confidence.toFixed(2)}`);
   }
 
   // Sur les mises élevées, l'erreur coûte trop cher pour être automatisée —
@@ -91,7 +112,7 @@ export function routeVerdict(input: RoutingInput): RoutingDecision {
     config.humanReviewStakeThresholdCents !== null &&
     input.stakeAmountCents >= config.humanReviewStakeThresholdCents
   ) {
-    return { route: "human_review", reason: "high_stake" };
+    return escalate("high_stake");
   }
 
   if (verdict.verdict === "fail") {
@@ -99,8 +120,10 @@ export function routeVerdict(input: RoutingInput): RoutingDecision {
   }
 
   // Relecture aléatoire de validations : sans elle, un fraudeur qui trouve
-  // une faille du modèle peut l'exploiter indéfiniment sans être vu.
-  if (random() < config.randomAuditRate) {
+  // une faille du modèle peut l'exploiter indéfiniment sans être vu. Le tirage
+  // n'a lieu que si quelqu'un relit — sinon il ne ferait que retarder une
+  // validation certaine.
+  if (config.humanReviewEnabled && random() < config.randomAuditRate) {
     return { route: "human_review", reason: "random_audit" };
   }
 
