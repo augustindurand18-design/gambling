@@ -16,6 +16,10 @@ struct CardEnrollmentView: View {
     var onEnrolled: () -> Void
     /// Nul quand l'écran s'ouvre depuis l'onboarding, où l'on ne renonce pas.
     var onSkip: (() -> Void)?
+    /// Une carte est déjà enregistrée : l'écran en propose le remplacement,
+    /// pas un premier enregistrement. Dire « Enregistrer ma carte » à
+    /// quelqu'un qui en a une lui fait croire que la sienne a disparu.
+    var replacesExistingCard: Bool = false
 
     @State private var phase: Phase = .loading
     @State private var errorMessage: String?
@@ -45,7 +49,7 @@ struct CardEnrollmentView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.small) {
-            Text("Ta carte")
+            Text(replacesExistingCard ? "Changer de carte" : "Ta carte")
                 .font(Theme.Fonts.display)
                 .foregroundStyle(Theme.Colors.ink)
 
@@ -115,7 +119,7 @@ struct CardEnrollmentView: View {
                     paymentSheet: sheet,
                     onCompletion: handle
                 ) {
-                    PrimaryButtonLabel(title: "Enregistrer ma carte")
+                    PrimaryButtonLabel(title: replacesExistingCard ? "Remplacer ma carte" : "Enregistrer ma carte")
                 }
                 .accessibilityIdentifier("card-enroll")
 

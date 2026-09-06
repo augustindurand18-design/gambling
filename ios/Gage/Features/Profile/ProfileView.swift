@@ -42,7 +42,8 @@ struct ProfileView: View {
             .sheet(isPresented: $isEnrollingCard) {
                 CardEnrollmentView(
                     onEnrolled: { Task { await loadAccount() } },
-                    onSkip: nil
+                    onSkip: nil,
+                    replacesExistingCard: account?.hasCard ?? false
                 )
             }
             .sheet(isPresented: $isChoosingCharity) {
@@ -88,9 +89,7 @@ struct ProfileView: View {
 
     /// « Visa •••• 4242 », ou l'invitation a en enregistrer une.
     private var cardLabel: String {
-        guard let account else { return "…" }
-        guard let last4 = account.pmLast4 else { return "À enregistrer" }
-        return "\(account.pmBrand?.capitalized ?? "Carte") •••• \(last4)"
+        account?.cardLabel ?? "…"
     }
 
     private var charityLabel: String {
@@ -131,6 +130,10 @@ struct ProfileView: View {
                 title: "Moyen de paiement",
                 accessory: .value(cardLabel)
             ) {
+                // Ouvert meme si le compte n'est pas encore charge : c'est une
+                // action legitime, et la refuser empecherait quelqu'un hors
+                // ligne d'enregistrer sa carte. C'est l'affichage qui devait
+                // cesser de mentir, pas l'acces.
                 isEnrollingCard = true
             }
             SettingsDivider()

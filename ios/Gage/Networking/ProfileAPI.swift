@@ -110,6 +110,28 @@ struct AccountState: Decodable, Sendable {
         defaultPaymentMethodID != nil && !stakeBlockActive
     }
 
+    /// Une carte est-elle enregistrée ?
+    ///
+    /// C'est `default_payment_method_id` qui fait foi, jamais `pm_last4` :
+    /// le premier est ce qui permet de débiter, le second n'est qu'un
+    /// ornement d'affichage, écrit par le webhook après coup. Les deux
+    /// peuvent diverger — une carte enregistrée avant que le webhook ne
+    /// fonctionne a bien un moyen de paiement et pas de quatre chiffres — et
+    /// l'écran annonçait alors « À enregistrer » à quelqu'un qui pouvait
+    /// engager de l'argent.
+    var hasCard: Bool { defaultPaymentMethodID != nil }
+
+    /// Ce que l'écran affiche pour la carte.
+    ///
+    /// Les quatre chiffres quand on les connaît, sinon le seul fait qu'une
+    /// carte existe — ce qui est la question à laquelle l'utilisateur veut
+    /// une réponse.
+    var cardLabel: String {
+        guard hasCard else { return "À enregistrer" }
+        guard let last4 = pmLast4 else { return "Carte enregistrée" }
+        return "\(pmBrand?.capitalized ?? "Carte") •••• \(last4)"
+    }
+
     /// Ce qui manque, dit à l'utilisateur.
     var blocker: String? {
         if stakeBlockActive {
