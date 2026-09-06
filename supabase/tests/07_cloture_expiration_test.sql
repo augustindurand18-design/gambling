@@ -77,10 +77,15 @@ select is(
   'Fenetre ouverte, delai ecoule, aucune preuve : l''objectif est rejete'
 );
 
+-- La fenetre de contestation a ete retiree (2026-09-06) : l'echeance est
+-- posee a `now()`, et le battement suivant clot l'objectif. Elle reste NON
+-- NULLE — `close_expired_goals` l'exige, et un rejet sans echeance ne serait
+-- jamais clos ni debite.
 select ok(
-  (select dispute_deadline_at > now() + interval '47 hours'
+  (select dispute_deadline_at is not null
+     and dispute_deadline_at <= now() + interval '1 minute'
    from public.goals where id = 'bbbb2222-0000-0000-0000-000000000001'),
-  'Le rejet ouvre une fenetre de contestation de 48 h'
+  'Le rejet pose une echeance immediate, sans fenetre de contestation'
 );
 
 -- (a bis) la grace d'horloge

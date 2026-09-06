@@ -68,8 +68,7 @@ enum ConsentTerms {
 
         lines.append(
             "Si ma preuve est acceptée, rien ne m'est débité. Si elle est refusée "
-                + "ou si je n'en envoie aucune, je dispose de 48 heures pour contester. "
-                + "Passé ce délai sans contestation, j'autorise le prélèvement de "
+                + "ou si je n'en envoie aucune, j'autorise le prélèvement de "
                 + "\(amount) sur ma carte enregistrée"
                 + (context.cardLast4.map { ", terminant par \($0)" } ?? "")
                 + ", sans nouvelle saisie de ma part."

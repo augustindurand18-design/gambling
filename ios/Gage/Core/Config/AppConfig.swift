@@ -73,7 +73,10 @@ enum AppConfig {
 
     /// Version des CGU en vigueur, enregistree dans chaque consentement.
     /// A incrementer a chaque modification du texte legal.
-    static let termsVersion = "2026-09-v1"
+    // v2 : la fenetre de contestation de 48 heures est retiree, le
+    // prelevement suit le verdict. Le texte signe ne peut pas changer sans
+    // que la version change — les consentements deja donnes gardent le leur.
+    static let termsVersion = "2026-09-v2"
 
     private static func string(for key: String) -> String? {
         guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String,

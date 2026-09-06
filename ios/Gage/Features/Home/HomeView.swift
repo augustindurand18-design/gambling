@@ -126,43 +126,58 @@ struct HomeView: View {
 
     // MARK: - Barre du bas
 
-    /// Deux actions cote a cote : creer, et regarder derriere soi.
+    /// Le « + » au centre, l'historique en satellite a sa droite.
+    ///
+    /// Les trois emplacements sont de largeur egale : c'est ce qui tient le
+    /// « + » au centre exact de l'ecran, et non au centre de ce qui reste
+    /// une fois l'historique pose. Celui de gauche attend une troisieme
+    /// action et reste vide.
     ///
     /// Le « + » garde le libelle « Nouvel objectif » pour qui n'a que la voix
     /// ou le clavier : un bouton dont le nom est un signe de ponctuation
     /// n'est pas annonçable.
     private var bottomBar: some View {
-        HStack(spacing: Theme.Spacing.small + 2) {
+        HStack(spacing: 0) {
+            // `Color` est flexible dans les deux dimensions : sans hauteur
+            // bornee sur le HStack, la barre reclamait tout l'ecran et
+            // recouvrait la liste des defis, qui devenait intouchable.
+            Color.clear
+                .frame(maxWidth: .infinity)
+
             Button {
                 isCreating = true
             } label: {
                 Image(systemName: "plus")
-                    .font(.system(size: 26, weight: .semibold))
+                    .font(.system(size: 28, weight: .semibold))
                     .foregroundStyle(Theme.Colors.onBrand)
-                    .frame(width: 61, height: 61)
+                    .frame(width: 64, height: 64)
                     .background(Circle().fill(Theme.Gradients.brand))
             }
             .accessibilityLabel("Nouvel objectif")
 
-            Button {
-                isShowingHistory = true
-            } label: {
-                HStack(spacing: 10) {
+            // Le satellite est pousse a gauche de son emplacement pour rester
+            // pres du « + » : colle au bord de l'ecran, il se toucherait mal.
+            HStack {
+                Button {
+                    isShowingHistory = true
+                } label: {
                     Image(systemName: "clock.arrow.circlepath")
-                        .font(.system(size: 17, weight: .semibold))
-                    Text("Historique")
+                        .font(.system(size: 19, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.ink)
+                        .frame(width: 48, height: 48)
+                        .background(Circle().fill(Theme.Colors.card))
+                        .overlay {
+                            Circle().strokeBorder(Theme.Colors.placeholderBorder, lineWidth: 1)
+                        }
                 }
-                .font(Theme.Fonts.button)
-                .foregroundStyle(Theme.Colors.ink)
-                .frame(maxWidth: .infinity, minHeight: 61)
-                .background {
-                    Capsule().fill(Theme.Colors.card)
-                }
-                .overlay {
-                    Capsule().strokeBorder(Theme.Colors.placeholderBorder, lineWidth: 1)
-                }
+                .accessibilityLabel("Historique")
+                .padding(.leading, Theme.Spacing.small)
+
+                Spacer(minLength: 0)
             }
+            .frame(maxWidth: .infinity)
         }
+        .frame(height: 64)
         .buttonStyle(.plain)
     }
 

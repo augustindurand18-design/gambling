@@ -129,7 +129,7 @@ struct ChallengeDetailView: View {
                     // Le bouton disparait, le texte reste. Le serveur reste
                     // seul juge de ce qui est encore recevable : on n'annonce
                     // pas ici que la mise est perdue.
-                    Text("La fenêtre s'est refermée. Si tu penses avoir tenu ta promesse, tu peux encore contester.")
+                    Text("La fenêtre s'est refermée. Ta mise sera prélevée.")
                         .font(Theme.Fonts.calendarLegend)
                         .foregroundStyle(Theme.Colors.inkMuted)
                         .multilineTextAlignment(.center)

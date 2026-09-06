@@ -85,9 +85,15 @@ struct ConsentTermsTests {
         #expect(text.contains("25 %"))
     }
 
-    @Test("Le délai de contestation est annoncé")
-    func statesDisputeWindow() {
-        #expect(ConsentTerms.text(for: context()).contains("48 heures"))
+    @Test("Aucun délai de contestation n'est promis")
+    func statesNoDisputeWindow() {
+        // La fenetre de 48 heures a ete retiree (2026-09-06). Promettre un
+        // recours qui n'existe plus serait faire signer un texte faux, sur
+        // le point meme qui autorise un prelevement.
+        let text = ConsentTerms.text(for: context())
+        #expect(!text.contains("48 heures"))
+        #expect(!text.contains("contester"))
+        #expect(text.contains("j'autorise le prélèvement"))
     }
 
     @Test("Le délai de soumission annoncé est celui du serveur")

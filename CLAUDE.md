@@ -274,6 +274,16 @@ _(date + décision + raison)_
   confiance sous 0,8 et l'échantillon aléatoire de 5 %. À réexaminer avant la
   bêta : c'est la garde qui empêchait l'IA de trancher seule jusqu'au plafond
   de 100 €.
+- 2026-09-06 : **la fenêtre de contestation est retirée** (`0036`). Un refus
+  clôt l'objectif et lance le prélèvement immédiatement. C'était le dernier
+  recours humain avant un débit, donc la traduction concrète de l'invariant 2 :
+  un faux négatif du modèle débite désormais sans que personne ne puisse s'y
+  opposer. **Les deux gardes sont tombées le même jour** — celle-ci et le seuil
+  de revue humaine sur le montant. À réexaminer ensemble avant la bêta.
+  Le texte de consentement a été réécrit et `termsVersion` passe à
+  `2026-09-v2` : il promettait 48 heures de recours, et faire signer un texte
+  faux sur le point qui autorise un prélèvement est le risque juridique le
+  plus direct du produit.
 - 2026-09-06 : **les mises des objectifs tenus sont libérées** (`0035`).
   `stake_status` prévoyait `released` mais rien ne le posait : un objectif
   **tenu** gardait sa mise `active` à vie et continuait de peser sur le
@@ -393,7 +403,7 @@ Toutes provisoires, isolées en constantes. À arbitrer (voir `docs/architecture
 | Rétention des photos | 60 j | `purge-proofs` (à écrire) |
 | Délai de soumission d'une preuve | 15 min | `app.proof_window_seconds()`, `MAX_CAPTURE_DELAY_SEC`, `ProofWindow.duration` |
 | Tolérance d'horloge | 120 s | `app.proof_clock_grace_seconds()`, `CLOCK_SKEW_TOLERANCE_SEC` |
-| Fenêtre de contestation | 48 h | `app.dispute_window_hours()` |
+| Fenêtre de contestation | **0 h (retirée)** | `app.dispute_window_hours()` |
 
 **Le délai de soumission vit à trois endroits** (base, vérification, iOS) et
 aucune vérification automatique ne détecte une divergence — chaque côté a un
