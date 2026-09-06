@@ -29,6 +29,14 @@ struct SettingsRow: View {
         return action != nil
     }
 
+    /// Une ligne purement informative n'est pas « desactivee » : la desactiver
+    /// ferait poser a SwiftUI son voile gris sur tout le contenu, titre
+    /// compris. Seul « Bientot » merite d'etre estompe.
+    private var isDimmed: Bool {
+        if case .comingSoon = accessory { return true }
+        return false
+    }
+
     var body: some View {
         Button {
             action?()
@@ -53,7 +61,8 @@ struct SettingsRow: View {
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        .disabled(!isActionable)
+        .allowsHitTesting(isActionable)
+        .disabled(isDimmed)
     }
 
     @ViewBuilder
