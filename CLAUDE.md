@@ -33,7 +33,7 @@ réelles (RLS, triggers, permissions de schéma) n'étaient pas visibles à la
 lecture et n'ont été trouvées qu'en lançant le schéma contre une vraie base.
 
 ```bash
-supabase test db                                      # 115 tests
+supabase test db                                      # 116 tests
 deno test supabase/functions --allow-env --no-check   # 60 tests
 ./scripts/ios-test.sh                                 # 68 tests
 ```
@@ -274,6 +274,12 @@ _(date + décision + raison)_
   confiance sous 0,8 et l'échantillon aléatoire de 5 %. À réexaminer avant la
   bêta : c'est la garde qui empêchait l'IA de trancher seule jusqu'au plafond
   de 100 €.
+- 2026-09-06 : **la vérification part à la soumission** (`0037`), et non plus
+  au battement suivant. Une preuve envoyée à 26'05 attendait 27'00 avant que
+  le modèle ne commence — près d'une minute d'écran d'attente pour un verdict
+  qui prend quelques secondes. Le cron reste le filet en cas d'échec de
+  l'appel, et cet échec est avalé : une preuve qui n'a pas pu être annoncée ne
+  doit pas faire échouer sa propre soumission.
 - 2026-09-06 : **la fenêtre de contestation est retirée** (`0036`). Un refus
   clôt l'objectif et lance le prélèvement immédiatement. C'était le dernier
   recours humain avant un débit, donc la traduction concrète de l'invariant 2 :

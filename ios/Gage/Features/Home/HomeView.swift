@@ -155,8 +155,9 @@ struct HomeView: View {
             }
             .accessibilityLabel("Nouvel objectif")
 
-            // Le satellite est pousse a gauche de son emplacement pour rester
-            // pres du « + » : colle au bord de l'ecran, il se toucherait mal.
+            // Le satellite reste du meme cote que le « + » plutot que d'aller
+            // au bord de l'ecran, mais assez ecarte pour qu'on ne les prenne
+            // pas l'un pour l'autre — ni qu'on touche l'un en visant l'autre.
             HStack {
                 Button {
                     isShowingHistory = true
@@ -171,7 +172,7 @@ struct HomeView: View {
                         }
                 }
                 .accessibilityLabel("Historique")
-                .padding(.leading, Theme.Spacing.small)
+                .padding(.leading, Theme.Spacing.large)
 
                 Spacer(minLength: 0)
             }

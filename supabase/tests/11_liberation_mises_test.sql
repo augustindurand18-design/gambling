@@ -8,7 +8,7 @@
 -- Execution : supabase test db
 
 begin;
-select plan(5);
+select plan(6);
 
 create extension if not exists pgtap with schema extensions;
 
@@ -93,6 +93,28 @@ select is(
 select lives_ok(
   'select app.trigger_pending_charges()',
   'sans reglage Vault, le reveil des debits passe sans lever'
+);
+
+-- ------------------------------------- 6. une preuve reveille la verification
+-- Le declencheur ne doit jamais faire echouer la soumission : sans reglage
+-- Vault, l'insertion passe quand meme. Une preuve qui n'a pas pu etre
+-- annoncee ne doit pas coûter sa fenetre — donc sa mise — a l'utilisateur.
+insert into public.goals
+  (id, user_id, title, state, window_mode, fixed_time_local, timezone,
+   target_date, committed_at, window_opened_at, proof_deadline_at)
+values
+  ('bbbb2222-0000-0000-0000-000000000022',
+   'aaaa1111-0000-0000-0000-000000000020', 'Preuve', 'proof_window_open',
+   'fixed_time', '07:00', 'Europe/Paris', current_date, now(), now(),
+   now() + interval '5 min');
+
+select lives_ok(
+  $$insert into public.proofs (goal_id, user_id, storage_path, image_sha256)
+    values ('bbbb2222-0000-0000-0000-000000000022',
+            'aaaa1111-0000-0000-0000-000000000020',
+            'aaaa1111-0000-0000-0000-000000000020/bbbb2222-0000-0000-0000-000000000022/x.jpg',
+            repeat('a', 64))$$,
+  'l''arrivee d''une preuve ne peut pas echouer sur le reveil de la verification'
 );
 
 select * from finish();
