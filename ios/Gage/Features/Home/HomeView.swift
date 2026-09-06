@@ -14,6 +14,9 @@ struct HomeView: View {
     @State private var openedChallenge: ChallengeSummary?
     /// Boite aux lettres entre la notification et l'ecran de capture.
     private let router = ProofRouter.shared
+    /// Etat du compte : sert a prevenir d'un debit en souffrance.
+    @State private var account: AccountState?
+    @State private var isFixingPayment = false
 
     init(store: HomeStore = HomeStore()) {
         _store = State(wrappedValue: store)
@@ -34,6 +37,20 @@ struct HomeView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Theme.Spacing.large) {
                         header(snapshot)
+
+                        // Avant tout le reste : un debit en souffrance gele la
+                        // creation d'objectifs, et le decouvrir en se faisant
+                        // refuser un engagement serait la pire facon de
+                        // l'apprendre.
+                        if let account, account.stakeBlockActive {
+                            PaymentIncidentBanner(
+                                outstandingCents: account.outstandingBalanceCents,
+                                reason: account.stakeBlockReason
+                            ) {
+                                isFixingPayment = true
+                            }
+                        }
+
                         AssiduityBanner(status: snapshot.assiduity)
                         challenges(snapshot)
                         consistency(snapshot)
@@ -46,6 +63,7 @@ struct HomeView: View {
             }
         }
         .task { await store.loadIfNeeded() }
+        .task { await loadAccount() }
         .safeAreaInset(edge: .bottom) {
             PrimaryButton(title: "Nouvel objectif", showsChevron: false) {
                 isCreating = true
@@ -62,6 +80,12 @@ struct HomeView: View {
                 // doit le montrer, pas afficher l'etat d'avant.
                 Task { await store.reload() }
             }
+        }
+        .sheet(isPresented: $isFixingPayment) {
+            CardEnrollmentView(
+                onEnrolled: { Task { await loadAccount() } },
+                onSkip: nil
+            )
         }
         .sheet(isPresented: $isShowingProfile) {
             ProfileView(assiduity: assiduity)
@@ -84,6 +108,13 @@ struct HomeView: View {
                 Task { await store.reload() }
             }
         }
+    }
+
+    private func loadAccount() async {
+        #if DEBUG
+        if SessionStore.isUITesting { return }
+        #endif
+        account = try? await ProfileAPI.shared.load()
     }
 
     /// L'assiduite du moment, ou un compteur a zero tant que rien n'est
