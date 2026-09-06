@@ -137,8 +137,22 @@ struct ProofStoragePathTests {
         // La policy de stockage teste (storage.foldername(name))[1] contre
         // auth.uid(), et submit_proof revérifie le préfixe complet. Un segment
         // de décalage, et l'envoi échoue sur un message serveur illisible.
+        // Le littéral est en minuscules a dessein : le comparer a
+        // `user.uuidString` validerait n'importe quelle casse, et c'est
+        // exactement ce qui a laisse passer le bug — Postgres rend
+        // `auth.uid()::text` en minuscules, Swift rend `uuidString` en
+        // majuscules, et la policy compare les deux chaines telles quelles.
         let path = ProofStoragePath.make(userID: user, goalID: goal, fileID: file)
-        #expect(path == "\(user.uuidString)/\(goal.uuidString)/\(file.uuidString).jpg")
+        #expect(path == "aaaa1111-0000-0000-0000-000000000001/bbbb2222-0000-0000-0000-000000000001/cccc3333-0000-0000-0000-000000000001.jpg")
+    }
+
+    @Test("Le chemin est en minuscules")
+    func lowercased() {
+        // `auth.uid()::text` rend l'identifiant en minuscules. Une seule
+        // majuscule dans le premier segment, et la policy de stockage refuse
+        // l'envoi : la preuve n'atteint jamais le bucket.
+        let path = ProofStoragePath.make(userID: user, goalID: goal, fileID: file)
+        #expect(path == path.lowercased())
     }
 
     @Test("Le chemin ne porte pas le nom du bucket")

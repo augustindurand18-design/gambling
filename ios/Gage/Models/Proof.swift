@@ -43,8 +43,14 @@ enum ProofStoragePath {
     /// Sans le nom du bucket : `storage.from("proofs")` le porte déjà, et
     /// l'inclure ici décalerait tous les segments d'un cran, faisant échouer
     /// la policy sur un message illisible.
+    ///
+    /// **En minuscules.** `UUID.uuidString` rend l'identifiant en majuscules,
+    /// `auth.uid()::text` le rend en minuscules, et la policy de stockage
+    /// compare les deux chaînes littéralement : sans cette conversion, tout
+    /// envoi est refusé. `submit_proof` revérifie le même préfixe, donc le
+    /// refus arriverait deux fois plutôt que d'être rattrapé.
     static func make(userID: UUID, goalID: UUID, fileID: UUID = UUID()) -> String {
-        "\(userID.uuidString)/\(goalID.uuidString)/\(fileID.uuidString).jpg"
+        "\(userID.uuidString.lowercased())/\(goalID.uuidString.lowercased())/\(fileID.uuidString.lowercased()).jpg"
     }
 }
 
