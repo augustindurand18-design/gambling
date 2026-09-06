@@ -34,7 +34,7 @@ lecture et n'ont été trouvées qu'en lançant le schéma contre une vraie base
 
 ```bash
 supabase test db                                      # 122 tests
-deno test supabase/functions --allow-env --no-check   # 60 tests
+deno test supabase/functions --allow-env --no-check   # 64 tests
 ./scripts/ios-test.sh                                 # 68 tests
 ```
 
@@ -274,6 +274,17 @@ _(date + décision + raison)_
   confiance sous 0,8 et l'échantillon aléatoire de 5 %. À réexaminer avant la
   bêta : c'est la garde qui empêchait l'IA de trancher seule jusqu'au plafond
   de 100 €.
+- 2026-09-06 : **la revue humaine est fermée** (`humanReviewEnabled: false`).
+  Tout ce qui y partait est désormais **validé** — falsification soupçonnée,
+  modèle incertain, confiance faible, signal d'anti-triche. Le sens découle de
+  l'invariant 2, et le résultat était déjà celui-là 24 h plus tard via
+  `close_stale_reviews` : on ne fait que l'annoncer tout de suite. Le motif
+  garde la trace (`no_review:<raison>`) de ce qui aurait dû être relu.
+  **Deux conséquences à connaître** : la relecture aléatoire ne tire plus (elle
+  ne retarderait qu'une validation certaine), et **une panne du fournisseur de
+  vision valide toutes les preuves** au lieu de les faire relire. La fraude
+  établie (image dupliquée, hors fenêtre) rejette toujours — l'anti-triche
+  n'est pas désarmé. À rouvrir le jour où un tableau de revue existe.
 - 2026-09-06 : **une revue humaine non tranchée sous 24 h se clôt au bénéfice
   de l'utilisateur** (`0038`). `human_review` n'avait aucune issue : le tableau
   de revue n'existe pas, et ces objectifs restaient sur l'accueil
@@ -414,6 +425,7 @@ Toutes provisoires, isolées en constantes. À arbitrer (voir `docs/architecture
 | Part reversée à l'association | 25 % (2500 bps) | `AppConfig.swift`, `stakes.charity_bps` |
 | Plafond par objectif | 100 € | `profiles.per_goal_cap_cents` |
 | Plafond mensuel | 150 € | `profiles.monthly_cap_cents` |
+| Revue humaine | **fermée** | `routing.ts` |
 | Seuil de revue humaine | **désactivé** | `routing.ts` |
 | Relecture aléatoire | 5 % des validations | `routing.ts` |
 | Seuil de confiance du modèle | 0,8 | `routing.ts` |
