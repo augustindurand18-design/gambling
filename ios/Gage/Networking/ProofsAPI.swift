@@ -100,7 +100,16 @@ struct ProofsAPI: Sendable {
             return .server(message: "La fenêtre de preuve n'est pas ouverte pour cet objectif.")
         }
 
+        // Trois refus de `submit_proof` n'ont pas de message dedie —
+        // authentification, objectif introuvable, chemin invalide — et
+        // tombaient tous dans la meme phrase, qui ne distingue rien. Le texte
+        // du serveur est joint en developpement : c'est la seule chose qui
+        // dise lequel des trois s'est produit.
+        #if DEBUG
+        return .server(message: "Ta preuve n'a pas pu être enregistrée.\n\n\(text)")
+        #else
         return .server(message: "Ta preuve n'a pas pu être enregistrée.")
+        #endif
     }
 }
 
