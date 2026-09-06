@@ -83,8 +83,8 @@ Le premier lancement télécharge plusieurs images Docker. La commande affiche �
 la fin un bloc JSON contenant `ANON_KEY` — gardez-le sous la main.
 
 ```bash
-supabase db reset     # applique les 28 migrations + le seed
-supabase test db      # 87 tests pgTAP, doivent tous passer
+supabase db reset     # applique les 31 migrations + le seed
+supabase test db      # 104 tests pgTAP, doivent tous passer
 ```
 
 Interface d'administration : http://127.0.0.1:54323
@@ -137,9 +137,9 @@ changements de configuration relisibles en revue.
 ## 4. Tests
 
 ```bash
-supabase test db                                      # base : 87 tests
-deno test supabase/functions --allow-env --no-check   # fonctions : 52 tests
-./scripts/ios-test.sh                                 # iOS : 56 tests
+supabase test db                                      # base : 104 tests
+deno test supabase/functions --allow-env --no-check   # fonctions : 59 tests
+./scripts/ios-test.sh                                 # iOS : 68 tests
 ```
 
 `./scripts/db-reset.sh` enchaîne reset + tests.
@@ -200,6 +200,36 @@ tout va en revue humaine. C'est coûteux et c'est voulu.
 
 ⚠️ Le prompt système est écrit et réglé pour Claude. Gemini sert à exercer la
 chaîne, pas à mesurer la qualité de vérification.
+
+### Exercer la chaîne de paiement
+
+Dans `supabase/.env` : `STRIPE_SECRET_KEY` (une clé restreinte `rk_test_`
+suffit — il lui faut Clients, SetupIntents, PaymentIntents et Clés éphémères
+en écriture, Moyens de paiement en lecture) et `STRIPE_PUBLISHABLE_KEY`.
+La publiable va aussi dans `ios/Config/Secrets.xcconfig`, sans quoi le
+formulaire de carte ne s'ouvre pas.
+
+Pour les webhooks, dans un terminal laissé ouvert :
+
+```bash
+stripe listen --api-key "$STRIPE_SECRET_KEY" --forward-to http://127.0.0.1:54321/functions/v1/stripe-webhook
+```
+
+⚠️ **`--api-key` n'est pas optionnel** si la CLI est authentifiée sur un autre
+compte que la clé. C'est arrivé : `stripe listen` écoutait un compte, le code
+écrivait dans l'autre, et le webhook ne se déclenchait jamais. Le `whsec_…`
+affiché au démarrage va dans `STRIPE_WEBHOOK_SECRET`, et il change à chaque
+lancement.
+
+Cartes de test utiles. Celles qui refusent à la validation **ne peuvent pas
+être enregistrées** — ce qui est fidèle à la réalité :
+
+| Jeton | Comportement |
+|---|---|
+| `pm_card_visa` | s'enregistre et se débite |
+| `pm_card_chargeCustomerFail` | s'enregistre, puis **échoue** au débit |
+| `pm_card_authenticationRequired` | s'enregistre, puis exige une authentification |
+| `pm_card_chargeDeclined` | refusée dès l'attachement |
 
 `GEMINI_MODEL` permet d'en essayer un autre. Attention : Google ferme ses
 anciens modèles aux comptes récents — `gemini-2.5-flash-lite` répond

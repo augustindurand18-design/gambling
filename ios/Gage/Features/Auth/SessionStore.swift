@@ -28,6 +28,16 @@ final class SessionStore {
             state = .signedIn(userID: Self.uiTestingUserID)
             return
         }
+        // Sans ce drapeau, un test qui attend l'ecran de bienvenue depend de
+        // ce que le trousseau du simulateur contient. Une session laissee par
+        // une session de developpement precedente survit a la desinstallation
+        // de l'application, et le test echoue en montrant l'accueil — un
+        // echec qui ressemble a une regression sans en etre une. C'est arrive
+        // deux fois avant que le drapeau n'existe.
+        if Self.isUITestingSignedOut {
+            state = .signedOut
+            return
+        }
         #endif
 
         for await (_, session) in SupabaseClientProvider.shared.auth.authStateChanges {
@@ -62,6 +72,13 @@ final class SessionStore {
         ProcessInfo.processInfo.arguments.contains(uiTestingArgument)
     }
 
+    /// Force l'ecran de bienvenue, quoi que contienne le trousseau.
+    static let uiTestingSignedOutArgument = "-uiTestSignedOut"
+
     private static var isUITestingSignedIn: Bool { isUITesting }
+
+    private static var isUITestingSignedOut: Bool {
+        ProcessInfo.processInfo.arguments.contains(uiTestingSignedOutArgument)
+    }
     #endif
 }

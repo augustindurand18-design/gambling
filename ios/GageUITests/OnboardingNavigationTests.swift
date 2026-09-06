@@ -18,6 +18,10 @@ final class OnboardingNavigationTests: XCTestCase {
     /// réservée au rôle authenticated.
     func testCommencerDemandeUneAdresseEmail() {
         let app = XCUIApplication()
+        // Sans ce drapeau, une session laissee dans le trousseau du simulateur
+        // ouvrirait l'accueil au lieu de l'ecran de bienvenue, et le test
+        // echouerait sans qu'aucun code n'ait change.
+        app.launchArguments += ["-uiTestSignedOut"]
         app.launch()
 
         let commencer = app.buttons["Commencer"]
@@ -47,6 +51,10 @@ final class OnboardingNavigationTests: XCTestCase {
     /// déjà venu.
     func testSeConnecterMeneAuMemeEcran() {
         let app = XCUIApplication()
+        // Sans ce drapeau, une session laissee dans le trousseau du simulateur
+        // ouvrirait l'accueil au lieu de l'ecran de bienvenue, et le test
+        // echouerait sans qu'aucun code n'ait change.
+        app.launchArguments += ["-uiTestSignedOut"]
         app.launch()
 
         let seConnecter = app.buttons["Se connecter"]

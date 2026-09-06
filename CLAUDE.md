@@ -33,9 +33,9 @@ réelles (RLS, triggers, permissions de schéma) n'étaient pas visibles à la
 lecture et n'ont été trouvées qu'en lançant le schéma contre une vraie base.
 
 ```bash
-supabase test db                                      # 87 tests
-deno test supabase/functions --allow-env --no-check   # 52 tests
-./scripts/ios-test.sh                                 # 56 tests
+supabase test db                                      # 104 tests
+deno test supabase/functions --allow-env --no-check   # 59 tests
+./scripts/ios-test.sh                                 # 68 tests
 ```
 
 Pour observer la boucle de notification en local, il faut d'abord un moyen de
@@ -147,7 +147,7 @@ Capture **uniquement via caméra intégrée à l'app** (pas d'upload galerie) ; 
 - [x] **`send-push`** — livraison seule, avec transport de repli. Jamais exécutée contre Apple (voir ci-dessous)
 - [x] **Caméra AVFoundation + pré-filtre Vision + envoi** (`Features/ProofCapture/`, `ProofsAPI`)
 - [x] **Edge Function `verify-proof`** — anti-triche, modèle, routage, verdict. Claude en production (Haiku → escalade Sonnet), Gemini comme fournisseur de test
-- [ ] Edge Functions Stripe : `stripe-setup-intent`, `stripe-webhook`, `stripe-charge-stake`
+- [x] **Edge Functions Stripe** : `stripe-setup-intent`, `stripe-webhook`, `stripe-charge-stake`, plus le cycle de debit en base (`0029`, `0031`). Verifiees contre le vrai Stripe en mode test
 - [ ] `dispute-intake`, `weekly-assiduity`, `purge-proofs`
 - [ ] Le reste de l'interface iOS (dépend du design Figma)
 - [ ] Abonnement IAP + RevenueCat (reporté après la bêta)

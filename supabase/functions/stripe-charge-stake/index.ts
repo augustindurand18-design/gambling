@@ -18,7 +18,8 @@
 
 import type Stripe from "npm:stripe@22.4.0";
 import { adminClient, errorResponse, json } from "../_shared/db.ts";
-import { CURRENCY, isFailure, requiresAction, stripeClient } from "../_shared/stripe.ts";
+import { stripeClient } from "../_shared/stripe.ts";
+import { CURRENCY, isFailure, requiresAction } from "../_shared/stripe-policy.ts";
 
 /** Au-delà, on cesse d'insister : la ligne reste visible avec son motif. */
 const MAX_ATTEMPTS = 4;
@@ -115,13 +116,14 @@ async function chargeOne(db: any, stripe: Stripe, goalId: string): Promise<strin
         p_charge_id: charge.charge_id,
         p_payment_intent_id: failed.id,
       });
+      const authentication = requiresAction(failed.status, stripeError.code);
       await db.rpc("settle_charge_failed", {
         p_payment_intent_id: failed.id,
         p_failure_code: stripeError.code ?? "card_declined",
         p_failure_message: stripeError.message ?? null,
-        p_requires_action: requiresAction(failed.status),
+        p_requires_action: authentication,
       });
-      return requiresAction(failed.status) ? "requires_action" : "failed";
+      return authentication ? "requires_action" : "failed";
     }
 
     throw cause;
@@ -141,17 +143,18 @@ async function chargeOne(db: any, stripe: Stripe, goalId: string): Promise<strin
   }
 
   if (isFailure(intent.status)) {
+    const authentication = requiresAction(intent.status, intent.last_payment_error?.code);
     await db.rpc("settle_charge_failed", {
       p_payment_intent_id: intent.id,
-      p_failure_code: requiresAction(intent.status)
+      p_failure_code: authentication
         ? "authentication_required"
         : intent.last_payment_error?.code ?? "payment_failed",
-      p_failure_message: requiresAction(intent.status)
+      p_failure_message: authentication
         ? "La banque demande une authentification."
         : intent.last_payment_error?.message ?? null,
-      p_requires_action: requiresAction(intent.status),
+      p_requires_action: authentication,
     });
-    return requiresAction(intent.status) ? "requires_action" : "failed";
+    return authentication ? "requires_action" : "failed";
   }
 
   return "processing";

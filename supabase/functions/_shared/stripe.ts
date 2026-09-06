@@ -11,14 +11,8 @@
 
 import Stripe from "npm:stripe@22.4.0";
 
-/**
- * Version d'API figée.
- *
- * Sans épinglage, une évolution côté Stripe changerait la forme des objets
- * reçus par le webhook sans qu'aucun déploiement de notre côté ne l'annonce —
- * et ce webhook décide de débits.
- */
-export const STRIPE_API_VERSION = "2026-07-29.dahlia";
+import { STRIPE_API_VERSION } from "./stripe-policy.ts";
+export { STRIPE_API_VERSION };
 
 let cached: Stripe | null = null;
 
@@ -45,40 +39,11 @@ export function resetStripeClient(): void {
   cached = null;
 }
 
-/**
- * Devise unique du produit. Les mises sont en euros, le marché est la France.
- */
-export const CURRENCY = "eur";
-
-/**
- * Le débit d'une mise perdue est une opération initiée par le marchand : le
- * client n'est pas devant son téléphone au moment où elle part.
- *
- * `off_session: true` le déclare à la banque, ce qui est à la fois exact et
- * nécessaire — sans cette mention, une SCA serait exigée à tous les coups.
- * Avec, elle reste possible mais rare.
- */
-export const OFF_SESSION_PAYMENT: Pick<
-  Stripe.PaymentIntentCreateParams,
-  "off_session" | "confirm"
-> = {
-  off_session: true,
-  confirm: true,
-};
-
-/**
- * Faut-il traiter cette issue comme un échec ?
- *
- * Décision du 2026-09-06 : une authentification exigée par la banque est
- * traitée comme un échec de carte — le montant devient un solde dû et la
- * création d'objectifs est gelée. La distinction est conservée pour le
- * message affiché, pas pour le traitement.
- */
-export function isFailure(status: Stripe.PaymentIntent.Status): boolean {
-  return status !== "succeeded" && status !== "processing";
-}
-
-/** La banque demande-t-elle une authentification ? */
-export function requiresAction(status: Stripe.PaymentIntent.Status): boolean {
-  return status === "requires_action" || status === "requires_confirmation";
-}
+// Les regles qui decident d'un blocage vivent dans `stripe-policy.ts`, sans
+// dependance npm, pour rester executables par `deno test` en local.
+export {
+  CURRENCY,
+  isFailure,
+  type PaymentIntentStatus,
+  requiresAction,
+} from "./stripe-policy.ts";
