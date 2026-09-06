@@ -106,3 +106,101 @@ extension ChallengeSummary {
         return 0
     }
 }
+
+// MARK: - Libelle affiche
+
+extension ChallengeSummary {
+
+    /// Seance que le defi doit nommer : celle dont la fenetre est ouverte,
+    /// sinon la prochaine a venir, sinon la derniere passee.
+    ///
+    /// `weekly(from:)` rend `sessions` deja trie par date, on peut donc lire
+    /// « la prochaine » comme la premiere qui n'est pas derriere nous.
+    var pertinentSession: ChallengeSession? {
+        if let open = sessions.first(where: { $0.state == .proofWindowOpen }) { return open }
+        let today = Calendar.gage.startOfDay(for: .now)
+        return sessions.first { $0.date >= today } ?? sessions.last
+    }
+
+    /// L'objectif ne tient-il qu'a une seance ?
+    ///
+    /// Un objectif sans seance connue compte comme unique : sans rythme a
+    /// annoncer, il n'y a rien a distinguer.
+    var isSingleSession: Bool { sessionCount <= 1 }
+
+    /// Titre montre a l'ecran.
+    ///
+    /// Une seule seance : le titre la date — « Aller a la salle — dimanche
+    /// 6 septembre a 21 h 35 ». Plusieurs seances : le titre reste la
+    /// promesse — « Aller a la salle 3 fois cette semaine » — parce que c'est
+    /// sur ce rythme que l'argent est engage, et que le dater sur une seule
+    /// de ses seances le ferait disparaitre de l'ecran.
+    ///
+    /// Purement de presentation dans les deux cas : `title` reste la promesse
+    /// signee, celle que le consentement a enregistree.
+    var displayTitle: String {
+        guard isSingleSession, let session = pertinentSession else { return title }
+        return "\(promisedAction) — \(moment(of: session))"
+    }
+
+    /// « Aller a la salle 3 fois cette semaine » devient « Aller a la salle ».
+    ///
+    /// Le rythme quitte le titre d'un objectif unique — il n'y en a pas — pour
+    /// laisser la place au moment. Un objectif anterieur aux promesses
+    /// hebdomadaires n'a pas ce suffixe : il est alors garde entier.
+    private var promisedAction: String {
+        guard let range = title.range(of: #"\s\d+ fois cette semaine$"#, options: .regularExpression)
+        else { return title }
+        return String(title[title.startIndex..<range.lowerBound])
+    }
+
+    /// Seance a annoncer sous le titre d'un objectif de la semaine, dont le
+    /// titre ne dit que le rythme.
+    ///
+    /// Nul pour un objectif unique — son titre porte deja le moment — et nul
+    /// quand toutes les seances sont derriere : il n'y a alors plus rien a
+    /// annoncer, la fiche raconte le reste.
+    var sessionHintText: String? {
+        guard !isSingleSession, let session = pertinentSession else { return nil }
+        if session.state == .proofWindowOpen { return "Preuve attendue : \(moment(of: session))" }
+        guard session.date >= Calendar.gage.startOfDay(for: .now) else { return nil }
+        return "Prochaine : \(moment(of: session))"
+    }
+
+    /// « dimanche 6 septembre a 21 h 35 », ou le jour seul quand aucune heure
+    /// n'a ete convenue : l'instant du controle surprise n'appartient pas au
+    /// telephone (invariant 4).
+    private func moment(of session: ChallengeSession) -> String {
+        let day = DayLabel.lowercased(session.date)
+        guard let time = session.timeText else { return day }
+        return "\(day) à \(time)"
+    }
+
+    /// Comme l'utilisateur nomme la chose : un objectif tenu un jour donne,
+    /// ou une promesse qui court sur la semaine.
+    var kindLabel: String {
+        isSingleSession ? "Ton objectif" : "Ton objectif de la semaine"
+    }
+}
+
+/// Jour ecrit en toutes lettres, d'une seule facon dans toute l'application.
+enum DayLabel {
+
+    /// « Lundi 7 septembre ».
+    static func capitalized(_ date: Date) -> String {
+        let text = formatter.string(from: date)
+        return text.prefix(1).uppercased() + text.dropFirst()
+    }
+
+    /// « lundi 7 septembre », pour un titre ou le jour suit un tiret.
+    static func lowercased(_ date: Date) -> String {
+        formatter.string(from: date)
+    }
+
+    private static let formatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Money.locale
+        formatter.setLocalizedDateFormatFromTemplate("EEEE d MMMM")
+        return formatter
+    }()
+}

@@ -67,7 +67,7 @@ final class OnboardingNavigationTests: XCTestCase {
         let app = launchSignedIn()
 
         XCTAssertTrue(
-            app.staticTexts["Tes défis"].waitForExistence(timeout: 10),
+            app.staticTexts["Tes objectifs"].waitForExistence(timeout: 10),
             "L'accueil ne s'est pas affiché pour un utilisateur connecté"
         )
         attach(app, name: "02-accueil")
@@ -224,7 +224,7 @@ final class OnboardingNavigationTests: XCTestCase {
         app.buttons["Terminer"].tap()
 
         XCTAssertTrue(
-            app.staticTexts["Tes défis"].waitForExistence(timeout: 5),
+            app.staticTexts["Tes objectifs"].waitForExistence(timeout: 5),
             "L'accueil ne s'est pas réaffiché après l'engagement"
         )
     }
@@ -234,7 +234,7 @@ final class OnboardingNavigationTests: XCTestCase {
     func testAccueilMontreLaRegulariteEtLeProfil() {
         let app = launchSignedIn()
 
-        XCTAssertTrue(app.staticTexts["Tes défis"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Tes objectifs"].waitForExistence(timeout: 10))
 
         app.swipeUp()
         XCTAssertTrue(
@@ -270,17 +270,21 @@ final class OnboardingNavigationTests: XCTestCase {
     func testUnDefiSouvreSurSaFiche() {
         let app = launchSignedIn()
 
+        // Seul un objectif de la semaine garde son rythme en titre : un
+        // objectif d'un seul jour, lui, date sa seance. C'est donc ce qui
+        // designe a coup sur une carte hebdomadaire, dont la fiche liste des
+        // seances.
         let defi = app.buttons.matching(
             NSPredicate(format: "label CONTAINS %@", "fois cette semaine")
         ).firstMatch
-        XCTAssertTrue(defi.waitForExistence(timeout: 10), "Aucun défi hebdomadaire sur l'accueil")
+        XCTAssertTrue(defi.waitForExistence(timeout: 10), "Aucun objectif de la semaine sur l'accueil")
         attach(app, name: "14-accueil-defis-hebdo")
 
         defi.tap()
 
         XCTAssertTrue(
-            app.staticTexts["Ton défi"].waitForExistence(timeout: 5),
-            "La fiche du défi ne s'est pas ouverte"
+            app.staticTexts["Ton objectif de la semaine"].waitForExistence(timeout: 5),
+            "La fiche de l'objectif ne s'est pas ouverte"
         )
         // Les titres de section s'affichent en capitales.
         XCTAssertTrue(
@@ -295,7 +299,7 @@ final class OnboardingNavigationTests: XCTestCase {
 
         app.buttons["Fermer"].tap()
         XCTAssertTrue(
-            app.staticTexts["Tes défis"].waitForExistence(timeout: 5),
+            app.staticTexts["Tes objectifs"].waitForExistence(timeout: 5),
             "La fermeture de la fiche n'a pas ramené à l'accueil"
         )
     }

@@ -104,7 +104,133 @@ final class ChallengeSummaryTests: XCTestCase {
         }
     }
 
+    // MARK: - Titre affiche
+
+    /// Un objectif d'un seul jour doit dire quand il etait attendu : « Aller a
+    /// la salle 1 fois cette semaine » ne suffit pas a comprendre un refus.
+    func testLeTitreDUnObjectifUniqueNommeLeJourEtLHeure() {
+        let jour = Date(timeIntervalSince1970: 1_757_000_000)
+        let defi = defi(sessions: [seance(date: jour, state: .closedFailed, heure: "21 h 35")])
+
+        XCTAssertEqual(
+            defi.displayTitle,
+            "Aller à la salle — \(DayLabel.lowercased(jour)) à 21 h 35"
+        )
+    }
+
+    /// Sans heure convenue, le titre s'arrete au jour : l'instant du controle
+    /// surprise n'appartient pas au telephone (invariant 4).
+    func testSansHeureConvenueLeTitreSArreteAuJour() {
+        let jour = Date(timeIntervalSince1970: 1_757_000_000)
+        let defi = defi(sessions: [seance(date: jour, state: .committed, heure: nil)])
+
+        XCTAssertEqual(defi.displayTitle, "Aller à la salle — \(DayLabel.lowercased(jour))")
+    }
+
+    /// Un objectif de la semaine garde son rythme en titre : c'est sur lui que
+    /// l'argent est engage, le dater sur une seule seance le ferait disparaitre.
+    func testUnObjectifDeLaSemaineGardeSaPromesseEnTitre() {
+        let premier = Date(timeIntervalSince1970: 1_757_000_000)
+        let defi = defi(sessions: [
+            seance(date: premier, state: .committed, heure: "08 h 00"),
+            seance(date: premier.addingTimeInterval(2 * 86_400), state: .committed, heure: "18 h 30")
+        ])
+
+        XCTAssertEqual(defi.displayTitle, "Aller à la salle 5 fois cette semaine")
+        XCTAssertEqual(defi.kindLabel, "Ton objectif de la semaine")
+    }
+
+    /// Une fenetre ouverte est la seance qui coute de l'argent : c'est elle que
+    /// la mention annonce, meme si une autre vient avant dans la semaine.
+    func testLaSeanceOuverteLEmporteDansLaMention() {
+        let premier = Date(timeIntervalSince1970: 1_757_000_000)
+        let ouverte = premier.addingTimeInterval(2 * 86_400)
+        let defi = defi(sessions: [
+            seance(date: premier, state: .closedKept, heure: "08 h 00"),
+            seance(date: ouverte, state: .proofWindowOpen, heure: "18 h 30")
+        ])
+
+        XCTAssertEqual(
+            defi.sessionHintText,
+            "Preuve attendue : \(DayLabel.lowercased(ouverte)) à 18 h 30"
+        )
+    }
+
+    /// La prochaine seance s'annonce ; une semaine entierement derriere nous
+    /// n'annonce plus rien, la fiche raconte le reste.
+    func testLaMentionAnnonceLaProchaineSeancePuisSeTait() {
+        let demain = Calendar.gage.startOfDay(for: .now).addingTimeInterval(86_400)
+        let aVenir = defi(sessions: [
+            seance(date: demain, state: .committed, heure: "18 h 30"),
+            seance(date: demain.addingTimeInterval(86_400), state: .committed, heure: nil)
+        ])
+
+        XCTAssertEqual(
+            aVenir.sessionHintText,
+            "Prochaine : \(DayLabel.lowercased(demain)) à 18 h 30"
+        )
+
+        let vieux = Date(timeIntervalSince1970: 1_757_000_000)
+        let passe = defi(sessions: [
+            seance(date: vieux, state: .closedKept, heure: "08 h 00"),
+            seance(date: vieux.addingTimeInterval(86_400), state: .closedFailed, heure: "08 h 00")
+        ])
+
+        XCTAssertNil(passe.sessionHintText)
+    }
+
+    /// Un objectif unique porte deja son moment en titre : le repeter dessous
+    /// n'apprendrait rien.
+    func testUnObjectifUniqueNAnnonceRienSousSonTitre() {
+        let defi = defi(sessions: [seance(date: .now, state: .committed, heure: "07 h 00")])
+
+        XCTAssertNil(defi.sessionHintText)
+        XCTAssertEqual(defi.kindLabel, "Ton objectif")
+    }
+
+    /// Un objectif d'avant les promesses hebdomadaires n'a pas le suffixe de
+    /// rythme : on garde son titre entier plutot que de le rogner au hasard.
+    func testUnTitreSansRythmeEstGardeEntier() {
+        let jour = Date(timeIntervalSince1970: 1_757_000_000)
+        var defi = defi(sessions: [seance(date: jour, state: .committed, heure: nil)])
+        defi = ChallengeSummary(
+            id: defi.id,
+            title: "Ranger mon bureau",
+            proofTitle: defi.proofTitle,
+            state: defi.state,
+            stakeCents: 0,
+            deadline: nil,
+            sessions: defi.sessions
+        )
+
+        XCTAssertEqual(defi.displayTitle, "Ranger mon bureau — \(DayLabel.lowercased(jour))")
+    }
+
+    /// La promesse signee ne bouge pas : c'est elle que le consentement a
+    /// enregistree, la reecriture n'est que d'affichage.
+    func testLaPromesseSigneeNEstPasReecrite() {
+        let defi = defi(sessions: [seance(date: .now, state: .committed, heure: "18 h 30")])
+
+        XCTAssertEqual(defi.title, "Aller à la salle 5 fois cette semaine")
+    }
+
     // MARK: - Utilitaires
+
+    private func defi(sessions: [ChallengeSession]) -> ChallengeSummary {
+        ChallengeSummary(
+            id: UUID(),
+            title: "Aller à la salle 5 fois cette semaine",
+            proofTitle: "Photo sur place",
+            state: sessions.first?.state ?? .draft,
+            stakeCents: 1000,
+            deadline: nil,
+            sessions: sessions
+        )
+    }
+
+    private func seance(date: Date, state: GoalState, heure: String?) -> ChallengeSession {
+        ChallengeSession(id: UUID(), date: date, state: state, timeText: heure)
+    }
 
     private func row(
         planID: UUID?,

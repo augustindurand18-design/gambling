@@ -52,7 +52,7 @@ final class HomeStore {
             state = .loaded(try await GoalsAPI.shared.loadHome())
         } catch {
             state = .failed(
-                (error as? AppError)?.errorDescription ?? "Impossible de charger tes défis."
+                (error as? AppError)?.errorDescription ?? "Impossible de charger tes objectifs."
             )
         }
     }

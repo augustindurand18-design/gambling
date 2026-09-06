@@ -142,7 +142,7 @@ struct GoalsAPI: Sendable {
         Log.app.error("Chargement de l'accueil: \(error.localizedDescription, privacy: .public)")
         if error is URLError { return .network }
         if error is DecodingError { return .decoding }
-        return .server(message: "Impossible de charger tes défis.")
+        return .server(message: "Impossible de charger tes objectifs.")
     }
 }
 

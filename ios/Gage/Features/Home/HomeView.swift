@@ -214,7 +214,7 @@ struct HomeView: View {
 
     private func failure(_ message: String) -> some View {
         VStack(spacing: Theme.Spacing.medium) {
-            Text("Tes défis n'ont pas pu être chargés")
+            Text("Tes objectifs n'ont pas pu être chargés")
                 .font(Theme.Fonts.title)
                 .foregroundStyle(Theme.Colors.ink)
                 .multilineTextAlignment(.center)
@@ -241,7 +241,7 @@ struct HomeView: View {
             }
             .padding(.bottom, Theme.Spacing.small)
 
-            Text("Tes défis")
+            Text("Tes objectifs")
                 .font(Theme.Fonts.display)
                 .foregroundStyle(Theme.Colors.ink)
 
@@ -284,7 +284,7 @@ struct HomeView: View {
                 .font(Theme.Fonts.cardTitle)
                 .foregroundStyle(Theme.Colors.ink)
 
-            Text("Compose ton premier défi et mise dessus.")
+            Text("Compose ton premier objectif et mise dessus.")
                 .font(Theme.Fonts.cardSubtitle)
                 .foregroundStyle(Theme.Colors.inkMuted)
         }
@@ -341,7 +341,7 @@ struct HomeView: View {
     }
 }
 
-#Preview("Avec défis") { HomeView(store: HomeStore(state: .loaded(.sample))) }
+#Preview("Avec objectifs") { HomeView(store: HomeStore(state: .loaded(.sample))) }
 
 #Preview("Compte neuf") { HomeView(store: HomeStore(state: .loaded(.empty))) }
 

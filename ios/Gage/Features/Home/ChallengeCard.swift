@@ -20,7 +20,7 @@ struct ChallengeCard: View {
                     stake
                 }
 
-                Text(challenge.title)
+                Text(challenge.displayTitle)
                     .font(Theme.Fonts.cardTitle)
                     .foregroundStyle(Theme.Colors.ink)
                     .multilineTextAlignment(.leading)
@@ -31,6 +31,11 @@ struct ChallengeCard: View {
                         .font(.system(size: 12, weight: .medium))
                     Text(challenge.proofTitle)
                         .lineLimit(1)
+
+                    if let hint = challenge.sessionHintText {
+                        Text("·")
+                        Text(hint).lineLimit(1)
+                    }
 
                     if let deadline = challenge.deadline {
                         Text("·")

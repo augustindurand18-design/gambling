@@ -61,7 +61,7 @@ struct HistoryView: View {
                 .font(Theme.Fonts.cardTitle)
                 .foregroundStyle(Theme.Colors.ink)
 
-            Text("Tes défis terminés apparaîtront ici, tenus comme manqués.")
+            Text("Tes objectifs terminés apparaîtront ici, tenus comme manqués.")
                 .font(Theme.Fonts.cardSubtitle)
                 .foregroundStyle(Theme.Colors.inkMuted)
                 .multilineTextAlignment(.center)

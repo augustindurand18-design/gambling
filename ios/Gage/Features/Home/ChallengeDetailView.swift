@@ -30,7 +30,7 @@ struct ChallengeDetailView: View {
                     VStack(spacing: Theme.Spacing.medium + 4) {
                         headline
                         if isWindowOpen { openWindow }
-                        sessions
+                        if !challenge.isSingleSession { sessions }
                         stake
                         proof
                         footer
@@ -42,7 +42,7 @@ struct ChallengeDetailView: View {
                 .scrollIndicators(.hidden)
             }
             .onReceive(tick) { if isWindowOpen { now = $0 } }
-            .navigationTitle("Ton défi")
+            .navigationTitle(challenge.kindLabel)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -60,17 +60,21 @@ struct ChallengeDetailView: View {
         VStack(spacing: Theme.Spacing.small + 2) {
             StateBadge(state: challenge.state)
 
-            Text(challenge.title)
+            Text(challenge.displayTitle)
                 .font(Theme.Fonts.title)
                 .foregroundStyle(Theme.Colors.ink)
                 .multilineTextAlignment(.center)
                 .lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Text(progressText)
-                .font(Theme.Fonts.cardSubtitle)
-                .foregroundStyle(Theme.Colors.inkMuted)
-                .multilineTextAlignment(.center)
+            // Le compteur ne dit rien qu'un objectif unique ne dise deja :
+            // son etat se lit a la pastille, et sa seance au titre.
+            if !challenge.isSingleSession {
+                Text(progressText)
+                    .font(Theme.Fonts.cardSubtitle)
+                    .foregroundStyle(Theme.Colors.inkMuted)
+                    .multilineTextAlignment(.center)
+            }
         }
         .padding(.top, Theme.Spacing.small)
     }
@@ -156,7 +160,7 @@ struct ChallengeDetailView: View {
                 if index > 0 { SettingsDivider() }
                 SettingsRow(
                     symbol: Self.symbol(for: session.state),
-                    title: Self.dayText(session.date),
+                    title: DayLabel.capitalized(session.date),
                     accessory: .value(session.timeText ?? "Le matin même")
                 )
             }
@@ -167,7 +171,10 @@ struct ChallengeDetailView: View {
         SettingsSection(title: "Ce que tu risques") {
             SettingsRow(
                 symbol: "eurosign.circle",
-                title: "La mise, pour la semaine",
+                // Une mise couvre toujours la promesse entiere. Le dire
+                // « pour la semaine » sur un objectif d'un seul jour laissait
+                // croire a d'autres seances qui n'existent pas.
+                title: challenge.isSingleSession ? "La mise" : "La mise, pour la semaine",
                 accessory: .value(
                     challenge.stakeCents > 0
                         ? Money.format(cents: challenge.stakeCents)
@@ -196,7 +203,7 @@ struct ChallengeDetailView: View {
     }
 
     private var footer: some View {
-        Text("Tant que le paiement n'est pas branché, ce défi reste un brouillon : aucune mise n'est engagée et rien ne peut être débité.")
+        Text("Tant que le paiement n'est pas branché, cet objectif reste un brouillon : aucune mise n'est engagée et rien ne peut être débité.")
             .font(Theme.Fonts.calendarLegend)
             .foregroundStyle(Theme.Colors.inkMuted)
             .multilineTextAlignment(.center)
@@ -217,18 +224,6 @@ struct ChallengeDetailView: View {
         }
     }
 
-    /// « Lundi 7 septembre ».
-    private static func dayText(_ date: Date) -> String {
-        let text = dayFormatter.string(from: date)
-        return text.prefix(1).uppercased() + text.dropFirst()
-    }
-
-    private static let dayFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Money.locale
-        formatter.setLocalizedDateFormatFromTemplate("EEEE d MMMM")
-        return formatter
-    }()
 }
 
 #Preview {

@@ -78,7 +78,7 @@ struct ProfileView: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
 
-            Text("Tes défis te suivent sur tous tes appareils.")
+            Text("Tes objectifs te suivent sur tous tes appareils.")
                 .font(Theme.Fonts.cardSubtitle)
                 .foregroundStyle(Theme.Colors.inkMuted)
                 .multilineTextAlignment(.center)
