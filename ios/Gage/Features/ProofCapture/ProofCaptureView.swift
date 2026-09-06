@@ -229,9 +229,23 @@ struct ProofCaptureView: View {
 
             phase = .sent
         } catch {
-            phase = .failed(
-                (error as? AppError)?.errorDescription ?? "Ta preuve n'a pas pu être envoyée."
-            )
+            // Le repli generique efface l'information au moment ou elle est
+            // la plus utile : une erreur qui n'est pas un `AppError` vient de
+            // la camera ou du SDK, et son texte est la seule chose qui
+            // distingue une panne d'objectif d'un refus du serveur. On la
+            // journalise toujours, et on la montre en developpement — jamais
+            // a un utilisateur, a qui elle ne dirait rien.
+            Log.proof.error("Envoi de la preuve: \(String(describing: error), privacy: .public)")
+
+            if let appError = error as? AppError, let description = appError.errorDescription {
+                phase = .failed(description)
+            } else {
+                #if DEBUG
+                phase = .failed("Ta preuve n'a pas pu être envoyée.\n\n\(error)")
+                #else
+                phase = .failed("Ta preuve n'a pas pu être envoyée.")
+                #endif
+            }
         }
     }
 
