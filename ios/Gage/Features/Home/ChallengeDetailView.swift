@@ -82,13 +82,24 @@ struct ChallengeDetailView: View {
 
     // MARK: - Sections
 
-    /// Une fenetre est-elle ouverte maintenant ?
+    /// Seance dont la fenetre est ouverte, s'il y en a une.
     ///
-    /// L'etat seul ne suffit pas : sans echeance il n'y a ni compte a rebours
-    /// honnete a afficher, ni fenetre a rouvrir.
-    private var isWindowOpen: Bool {
-        challenge.state == .proofWindowOpen && challenge.deadline != nil
+    /// C'est elle qu'il faut, et non le defi : `ChallengeSummary.id` est
+    /// l'identifiant de la **promesse** hebdomadaire, pas d'un objectif. La
+    /// base range « me lever 3 fois cette semaine » en trois objectifs, qui
+    /// sont dans `sessions` — envoyer l'identifiant du groupe a
+    /// `submit_proof` la fait repondre « Objectif introuvable ».
+    ///
+    /// L'echeance vient du defi : elle est le minimum des echeances du
+    /// groupe, et seule une seance ouverte en porte une.
+    private var openSession: (goalID: UUID, deadline: Date)? {
+        guard let session = challenge.sessions.first(where: { $0.state == .proofWindowOpen }),
+              let deadline = challenge.deadline
+        else { return nil }
+        return (session.id, deadline)
     }
+
+    private var isWindowOpen: Bool { openSession != nil }
 
     /// Fenetre ouverte : le temps qui reste, et de quoi la saisir.
     ///
@@ -98,7 +109,8 @@ struct ChallengeDetailView: View {
     /// d'etre prevenu.
     @ViewBuilder
     private var openWindow: some View {
-        if let deadline = challenge.deadline {
+        if let open = openSession {
+            let deadline = open.deadline
             let remaining = ProofWindow.remaining(until: deadline, now: now)
 
             VStack(spacing: Theme.Spacing.small + 2) {
@@ -124,7 +136,7 @@ struct ChallengeDetailView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
                     PrimaryButton(title: "Prendre la photo", showsChevron: false) {
-                        onCapture?(PendingProof(goalID: challenge.id, deadline: deadline))
+                        onCapture?(PendingProof(goalID: open.goalID, deadline: deadline))
                         dismiss()
                     }
                 }
