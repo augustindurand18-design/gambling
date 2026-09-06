@@ -33,8 +33,8 @@ réelles (RLS, triggers, permissions de schéma) n'étaient pas visibles à la
 lecture et n'ont été trouvées qu'en lançant le schéma contre une vraie base.
 
 ```bash
-supabase test db                                      # 110 tests
-deno test supabase/functions --allow-env --no-check   # 59 tests
+supabase test db                                      # 115 tests
+deno test supabase/functions --allow-env --no-check   # 60 tests
 ./scripts/ios-test.sh                                 # 68 tests
 ```
 
@@ -274,6 +274,15 @@ _(date + décision + raison)_
   confiance sous 0,8 et l'échantillon aléatoire de 5 %. À réexaminer avant la
   bêta : c'est la garde qui empêchait l'IA de trancher seule jusqu'au plafond
   de 100 €.
+- 2026-09-06 : **les mises des objectifs tenus sont libérées** (`0035`).
+  `stake_status` prévoyait `released` mais rien ne le posait : un objectif
+  **tenu** gardait sa mise `active` à vie et continuait de peser sur le
+  plafond mensuel. Quelqu'un de parfaitement assidu finissait bloqué par ses
+  propres réussites. La migration rattrape aussi l'existant.
+- 2026-09-06 : **le débit des mises perdues est déclenché** (`0035`), au même
+  battement. Le cycle (`0029`) et `stripe-charge-stake` étaient écrits et
+  testés, mais personne ne les appelait : une mise perdue restait due sans
+  échéance, et rien ne le disait à l'utilisateur.
 - 2026-09-06 : **`verify-proof` est planifiée** (`0034`), sur le même battement
   et le même jeton court que `send-push`. Une preuve envoyée restait sinon en
   `proof_submitted` indéfiniment — sans coût pour l'utilisateur, l'échéance
