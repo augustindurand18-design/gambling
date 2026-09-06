@@ -25,18 +25,35 @@ struct ProofCaptureView: View {
     private enum Phase: Equatable {
         case framing
         case sending
-        case sent
+        /// Preuve deposee, verdict attendu.
+        case awaiting(Verdict)
         case failed(String)
     }
+
+    /// Rythme et duree de l'attente du verdict.
+    ///
+    /// Deux secondes entre deux questions : le serveur tranche en trois a dix
+    /// secondes, interroger plus vite ne ferait que multiplier les requetes.
+    /// Au-dela de quarante secondes on cesse d'attendre — laisser quelqu'un
+    /// devant une roue qui tourne indefiniment est pire que de lui dire qu'on
+    /// ne sait pas encore.
+    private static let pollInterval = Duration.seconds(2)
+    private static let pollTimeout = Duration.seconds(40)
 
     private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         ScreenBackground {
             VStack(spacing: Theme.Spacing.medium) {
-                header
-                viewfinder
-                action
+                if case .awaiting(let verdict) = phase {
+                    // Plus de viseur ni de compte a rebours : la preuve est
+                    // partie, il n'y a plus qu'un resultat a attendre.
+                    VerdictView(verdict: verdict) { finish() }
+                } else {
+                    header
+                    viewfinder
+                    action
+                }
             }
             .padding(.horizontal, Theme.Spacing.screenHorizontal)
             .padding(.vertical, Theme.Spacing.medium)
@@ -177,19 +194,10 @@ struct ProofCaptureView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, Theme.Spacing.medium)
 
-        case .sent:
-            VStack(spacing: Theme.Spacing.small) {
-                Text("Preuve envoyée")
-                    .font(Theme.Fonts.cardTitle)
-                    .foregroundStyle(Theme.Colors.ink)
-                Text("On te dira si elle est validée.")
-                    .font(Theme.Fonts.cardSubtitle)
-                    .foregroundStyle(Theme.Colors.inkMuted)
-
-                PrimaryButton(title: "Terminer", showsChevron: false) {
-                    finish()
-                }
-            }
+        // `awaiting` n'a pas de barre d'action : `VerdictView` occupe tout
+        // l'ecran et porte son propre bouton.
+        case .awaiting:
+            EmptyView()
 
         case .failed(let message):
             VStack(spacing: Theme.Spacing.small) {
@@ -247,7 +255,8 @@ struct ProofCaptureView: View {
                 exif: exif
             )
 
-            phase = .sent
+            phase = .awaiting(.pending)
+            await awaitVerdict()
         } catch {
             // Le repli generique efface l'information au moment ou elle est
             // la plus utile : une erreur qui n'est pas un `AppError` vient de
@@ -267,6 +276,38 @@ struct ProofCaptureView: View {
                 #endif
             }
         }
+    }
+
+    /// Interroge le serveur jusqu'au verdict.
+    ///
+    /// L'utilisateur vient d'engager de l'argent : le renvoyer a l'accueil
+    /// sans reponse, alors que le verdict tombe en quelques secondes, lui
+    /// ferait chercher lui-meme ce qu'on peut lui dire tout de suite.
+    ///
+    /// Une erreur reseau n'interrompt pas l'attente : la preuve est deja
+    /// deposee, et l'echec d'une lecture ne change rien a ce que le serveur
+    /// decidera. On retente au tour suivant.
+    private func awaitVerdict() async {
+        let deadline = ContinuousClock.now + Self.pollTimeout
+
+        while ContinuousClock.now < deadline {
+            try? await Task.sleep(for: Self.pollInterval)
+            if Task.isCancelled { return }
+
+            guard let state = try? await GoalsAPI.shared.state(of: pending.goalID) else {
+                continue
+            }
+
+            let verdict = Verdict(state: state)
+            if verdict != .pending {
+                phase = .awaiting(verdict)
+                return
+            }
+        }
+
+        // Le serveur n'a pas tranche a temps. On ne prétend pas savoir : la
+        // seule chose certaine est que la preuve est arrivee.
+        phase = .awaiting(.tooLong)
     }
 
     /// Repart au cadrage : la photo figee s'efface et la camera redemarre.

@@ -82,6 +82,31 @@ struct GoalsAPI: Sendable {
         )
     }
 
+    /// Etat courant d'un seul objectif.
+    ///
+    /// Sert a l'ecran de preuve, qui attend le verdict au lieu de renvoyer
+    /// l'utilisateur a l'accueil sans reponse. Une seule colonne : c'est la
+    /// requete la plus frequente de l'application pendant ces secondes-la,
+    /// elle part toutes les deux secondes.
+    func state(of goalID: UUID) async throws -> GoalState {
+        do {
+            let rows: [GoalStateRow] = try await client
+                .from("goals")
+                .select("state")
+                .eq("id", value: goalID)
+                .limit(1)
+                .execute()
+                .value
+
+            guard let state = rows.first?.state else {
+                throw AppError.server(message: "Objectif introuvable.")
+            }
+            return state
+        } catch {
+            throw Self.mapped(error)
+        }
+    }
+
     /// Verdict d'une journee, vu de l'utilisateur.
     ///
     /// Deux objectifs le meme jour : le manque l'emporte sur le tenu. Peindre
@@ -122,6 +147,11 @@ struct GoalsAPI: Sendable {
 }
 
 /// Ligne renvoyee par la requete d'accueil.
+/// Une seule colonne : l'etat, pour l'attente du verdict.
+private struct GoalStateRow: Decodable {
+    let state: GoalState
+}
+
 private struct GoalRow: Decodable {
     let id: UUID
     let planID: UUID?
