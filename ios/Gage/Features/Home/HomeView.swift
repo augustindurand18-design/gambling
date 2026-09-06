@@ -14,6 +14,8 @@ struct HomeView: View {
     @State private var openedChallenge: ChallengeSummary?
     /// Boite aux lettres entre la notification et l'ecran de capture.
     private let router = ProofRouter.shared
+    /// Capture demandee depuis la fiche, en attente que celle-ci soit fermee.
+    @State private var captureAfterDismiss: PendingProof?
     /// Etat du compte : sert a prevenir d'un debit en souffrance.
     @State private var account: AccountState?
     @State private var isFixingPayment = false
@@ -90,8 +92,18 @@ struct HomeView: View {
         .sheet(isPresented: $isShowingProfile) {
             ProfileView(assiduity: assiduity)
         }
-        .sheet(item: $openedChallenge) { challenge in
-            ChallengeDetailView(challenge: challenge)
+        // La capture ne peut pas s'ouvrir depuis la fiche : une feuille
+        // modale ne peut pas en presenter une seconde. La fiche depose donc
+        // sa demande, se ferme, et l'ecran est presente ici une fois la
+        // fermeture terminee — sinon SwiftUI ignore la presentation.
+        .sheet(item: $openedChallenge, onDismiss: {
+            guard let proof = captureAfterDismiss else { return }
+            captureAfterDismiss = nil
+            router.present(proof)
+        }) { challenge in
+            ChallengeDetailView(challenge: challenge) { proof in
+                captureAfterDismiss = proof
+            }
         }
         // Une demande de preuve passe devant tout le reste : la fenetre dure
         // quinze minutes, et l'utilisateur vient de toucher la notification

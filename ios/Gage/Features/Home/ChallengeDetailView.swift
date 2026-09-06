@@ -11,8 +11,17 @@ import SwiftUI
 /// n'est jamais affiche, il n'appartient pas au telephone.
 struct ChallengeDetailView: View {
     let challenge: ChallengeSummary
+    /// Demande d'ouvrir la capture. La fiche ne presente pas l'ecran
+    /// elle-meme : elle est deja une feuille modale, et en empiler une
+    /// seconde par-dessus ne marche pas. L'accueil s'en charge une fois
+    /// celle-ci refermee.
+    var onCapture: ((PendingProof) -> Void)?
 
     @Environment(\.dismiss) private var dismiss
+    /// Rafraichi chaque seconde, uniquement quand une fenetre est ouverte.
+    @State private var now = Date.now
+
+    private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         NavigationStack {
@@ -20,6 +29,7 @@ struct ChallengeDetailView: View {
                 ScrollView {
                     VStack(spacing: Theme.Spacing.medium + 4) {
                         headline
+                        if isWindowOpen { openWindow }
                         sessions
                         stake
                         proof
@@ -31,6 +41,7 @@ struct ChallengeDetailView: View {
                 }
                 .scrollIndicators(.hidden)
             }
+            .onReceive(tick) { if isWindowOpen { now = $0 } }
             .navigationTitle("Ton défi")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -70,6 +81,62 @@ struct ChallengeDetailView: View {
     }
 
     // MARK: - Sections
+
+    /// Une fenetre est-elle ouverte maintenant ?
+    ///
+    /// L'etat seul ne suffit pas : sans echeance il n'y a ni compte a rebours
+    /// honnete a afficher, ni fenetre a rouvrir.
+    private var isWindowOpen: Bool {
+        challenge.state == .proofWindowOpen && challenge.deadline != nil
+    }
+
+    /// Fenetre ouverte : le temps qui reste, et de quoi la saisir.
+    ///
+    /// C'est le seul endroit de la fiche ou une echeance s'affiche. Pour un
+    /// objectif encore `committed`, l'instant du controle n'appartient pas au
+    /// telephone (invariant 4) — ici il est deja connu, l'utilisateur vient
+    /// d'etre prevenu.
+    @ViewBuilder
+    private var openWindow: some View {
+        if let deadline = challenge.deadline {
+            let remaining = ProofWindow.remaining(until: deadline, now: now)
+
+            VStack(spacing: Theme.Spacing.small + 2) {
+                Text(remaining == nil ? "Temps écoulé" : "Il te reste")
+                    .font(Theme.Fonts.cardSubtitle)
+                    .foregroundStyle(Theme.Colors.inkMuted)
+
+                Text(ProofWindow.countdown(until: deadline, now: now))
+                    .font(Theme.Fonts.stat)
+                    .monospacedDigit()
+                    .foregroundStyle(remaining == nil ? Theme.Colors.failed : Theme.Colors.brand)
+                    .contentTransition(.numericText())
+                    .accessibilityLabel("Temps restant pour envoyer ta preuve")
+
+                if remaining == nil {
+                    // Le bouton disparait, le texte reste. Le serveur reste
+                    // seul juge de ce qui est encore recevable : on n'annonce
+                    // pas ici que la mise est perdue.
+                    Text("La fenêtre s'est refermée. Si tu penses avoir tenu ta promesse, tu peux encore contester.")
+                        .font(Theme.Fonts.calendarLegend)
+                        .foregroundStyle(Theme.Colors.inkMuted)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    PrimaryButton(title: "Prendre la photo", showsChevron: false) {
+                        onCapture?(PendingProof(goalID: challenge.id, deadline: deadline))
+                        dismiss()
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(Theme.Spacing.medium)
+            .background(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(Theme.Colors.card)
+            )
+        }
+    }
 
     private var sessions: some View {
         SettingsSection(title: "Tes séances") {

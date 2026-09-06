@@ -43,6 +43,16 @@ final class ProofRouter {
         Log.push.info("Demande de preuve reçue")
     }
 
+    /// Ouvre la capture depuis l'application elle-même.
+    ///
+    /// La notification n'est pas le seul chemin, et ne peut pas l'être : elle
+    /// se balaye, s'ignore, arrive en silencieux. En faire l'unique porte
+    /// d'entrée reviendrait à faire perdre une mise pour une notification
+    /// manquée — notre défaillance, pas celle de l'utilisateur.
+    func present(_ proof: PendingProof) {
+        pendingGoal = proof
+    }
+
     /// Referme la demande. Appelé quand l'écran de capture se ferme, quelle
     /// qu'en soit l'issue.
     func clear() {
