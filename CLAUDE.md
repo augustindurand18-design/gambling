@@ -389,4 +389,26 @@ test qui assène le littéral 900. Même remarque pour la tolérance d'horloge.
 ## Historique des incidents (pour ne pas les refaire)
 - **2026-09-02** — Le trigger de la machine à états échouait sur une erreur de permission pour tout appel client : le rôle `authenticated` n'avait pas accès au schéma `app`. La garde qui protège l'argent ne s'exécutait donc jamais dans le cas qui compte. Trouvé en exécutant, invisible à la lecture.
 - **2026-09-02** — Le journal d'audit se faisait refuser par sa propre RLS dès qu'une transition venait d'un client. Corrigé en passant les triggers en `security definer`.
+- **2026-09-06** — Aucune preuve n'atteignait le bucket. `UUID.uuidString`
+  rend l'identifiant en **majuscules**, `auth.uid()::text` en **minuscules**,
+  et la policy de stockage compare les deux chaînes telles quelles : tout
+  envoi était refusé. L'écran affichait « Ta photo n'a pas pu être envoyée »
+  sans dire pourquoi, et `submit_proof` aurait refusé une seconde fois, elle
+  revérifie le même préfixe. Le test comparait le chemin à `user.uuidString`,
+  donc il validait n'importe quelle casse. Trouvé en envoyant une vraie photo
+  depuis un vrai appareil. **La règle générale** : dès qu'un UUID est comparé
+  à du **texte** côté base — un préfixe de chemin, un `like`, une policy — il
+  se met en minuscules côté client. Passé comme valeur typée dans une requête
+  PostgREST, il est casté en `uuid` et la casse n'a aucune importance ; c'est
+  la comparaison textuelle, et elle seule, qui est piégeuse.
+- **2026-09-06** — Aucune notification ne partait, et rien ne le signalait.
+  `entitlements` avec un `path` mais sans `properties` ne rattache pas un
+  fichier écrit à la main : **XcodeGen le génère**, vide, et écrase le
+  contenu à chaque `xcodegen generate`. L'app partait signée sans
+  `aps-environment` alors que la capability était cochée sur l'App ID et que
+  le profil de provisioning portait le droit. La compilation réussissait.
+  Le seul contrôle qui fasse foi est le binaire signé :
+  `codesign -d --entitlements - <app>.app`. Au passage, `DEVELOPMENT_TEAM:
+  $(DEVELOPMENT_TEAM)` dans les réglages d'une cible est une auto-référence
+  que Xcode résout en chaîne vide, tout en écrasant la valeur du xcconfig.
 - **2026-09-02** — Runtime de simulateur iOS téléchargé simultanément par Xcode et en ligne de commande → trois images en double, toutes invalidées, asset purgé. 8 Go à retélécharger.
