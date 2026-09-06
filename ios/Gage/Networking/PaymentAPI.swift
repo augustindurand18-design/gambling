@@ -36,10 +36,51 @@ struct PaymentAPI: Sendable {
                 .invoke("stripe-setup-intent", options: FunctionInvokeOptions(body: [String: String]()))
             return response
         } catch {
-            Log.payment.error("Préparation de la carte: \(error.localizedDescription, privacy: .public)")
-            if error is URLError { throw AppError.network }
-            throw AppError.server(message: "Impossible de préparer l'enregistrement de ta carte.")
+            throw Self.mappedSetup(error)
         }
+    }
+
+    /// Distingue les causes d'un échec de préparation.
+    ///
+    /// Un message unique pour toutes les causes a déjà coûté un aller-retour :
+    /// « impossible de préparer » s'affichait aussi bien pour un serveur de
+    /// fonctions éteint que pour une session expirée. Les trois situations
+    /// appellent trois gestes différents, et celui qui lit le message doit
+    /// pouvoir agir.
+    private static func mappedSetup(_ error: Error) -> AppError {
+        Log.payment.error("Préparation de la carte: \(error.localizedDescription, privacy: .public)")
+
+        if error is URLError { return .network }
+
+        let text = error.localizedDescription.lowercased()
+
+        // 503 : la fonction n'est pas servie. En développement c'est le cas le
+        // plus fréquent — `supabase functions serve` n'a pas été lancé.
+        if text.contains("503") || text.contains("service unavailable") {
+            #if DEBUG
+            return .server(message: "Le service de paiement ne répond pas.\n"
+                + "En local : lance « supabase functions serve --env-file supabase/.env ».")
+            #else
+            return .server(message: "Le service de paiement est momentanément indisponible. Réessaie dans un instant.")
+            #endif
+        }
+
+        if text.contains("401") || text.contains("authentification") {
+            return .notAuthenticated
+        }
+
+        // Clé Stripe absente côté serveur : erreur de configuration, pas
+        // d'utilisation. Le message le dit franchement plutôt que de laisser
+        // croire à une panne passagère.
+        if text.contains("stripe_secret_key") {
+            #if DEBUG
+            return .server(message: "STRIPE_SECRET_KEY manque dans supabase/.env.")
+            #else
+            return .server(message: "Le paiement n'est pas configuré. Contacte le support.")
+            #endif
+        }
+
+        return .server(message: "Impossible de préparer l'enregistrement de ta carte.")
     }
 
     /// Engage l'objectif : crée la mise et le consentement, en une transaction.
