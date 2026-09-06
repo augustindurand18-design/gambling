@@ -201,10 +201,34 @@ chacun renseigne le sien, la clé anon n'entre jamais dans le dépôt public.
 3. **Ne jamais modifier une migration déjà poussée**, la règle vaut d'autant
    plus qu'un autre l'a peut-être déjà appliquée.
 
-**Ce qui n'est pas encore sur le distant** : aucune Edge Function déployée
-(`functions list` renvoie vide), donc ni `stripe-setup-intent`, ni
-`stripe-charge-stake`, ni `verify-proof`, ni `send-push`, ni `stripe-webhook`.
-Tout ce qui en dépend échoue côté app avec un message générique.
+**Le seed ne suit pas les migrations.** `supabase/seed.sql` n'est joué qu'en
+local, à chaque `supabase start` et `db reset`. `db push` n'applique que les
+migrations : sur un projet distant, le schéma arrive complet et **les données
+de départ manquent**. C'est ce qui a bloqué l'engagement le 2026-09-06 — la
+table `charities` était vide, donc la liste d'associations aussi, donc
+`profiles.default_charity_id` restait nul, et `commit_goal` se faisait refuser
+par la clé étrangère de `stakes.charity_id`. L'écran n'affichait que « Ton
+engagement n'a pas pu être enregistré ». Après tout changement de projet
+distant, **rejouer le seed à la main** (éditeur SQL du Dashboard, `psql` étant
+absent de la machine).
+
+**Corollaire, et c'est le piège** : un `migration list` tout vert ne prouve
+pas que la base est utilisable. Les 31 migrations étaient identiques des deux
+côtés au moment de la panne. Le contrôle qui rassure le plus est justement
+celui qui ne voit rien ici — vérifier les **données** (`charities` non vide,
+profil créé) autant que le schéma.
+
+**État des Edge Functions sur le distant** (2026-09-06) : `stripe-setup-intent`
+et `stripe-webhook` déployées et vérifiées de bout en bout — carte enregistrée,
+`setup_intent.succeeded` reçu, `default_payment_method_id` écrit. Restent à
+déployer `stripe-charge-stake`, `verify-proof` et `send-push` ; tout ce qui en
+dépend échoue côté app avec un message générique.
+
+**Une panne peut en cacher une autre.** Le parcours de paiement en a empilé
+quatre, chacune ne se révélant qu'une fois la précédente levée : fonction non
+déployée, puis clé publiable vide côté app, puis webhook absent, puis seed
+manquant. Ne pas conclure qu'une correction a échoué parce qu'un nouveau
+message apparaît — lire le nouveau message, il a changé.
 
 **Les secrets ne se déduisent pas de `supabase/.env`**, qui ne vaut que pour le
 local. Sur le distant, `SUPABASE_URL`, `SUPABASE_ANON_KEY` et
