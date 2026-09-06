@@ -6,6 +6,13 @@ import Foundation
 /// Le jour ou les requetes Supabase existeront, seule la fabrique changera.
 struct HomeSnapshot: Equatable, Sendable {
     var challenges: [ChallengeSummary]
+    /// Defis termines, du plus recent au plus ancien.
+    ///
+    /// Ils sont deja charges par la requete d'accueil, qui ramene tous les
+    /// objectifs : les garder ne coute pas un appel de plus. Ils vivent a
+    /// part des defis en cours parce qu'ils n'appellent aucun geste — eux ne
+    /// peuvent plus rien couter.
+    var past: [ChallengeSummary] = []
     var calendar: ConsistencyCalendar
     var assiduity: AssiduityStatus
 

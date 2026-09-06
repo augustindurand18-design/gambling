@@ -63,6 +63,14 @@ struct GoalsAPI: Sendable {
                     .filter { $0.state.isActive || $0.state == .draft }
                     .compactMap { $0.sessionRow(in: calendar) }
             ),
+            // Meme regroupement par promesse que les defis en cours : c'est
+            // ainsi que l'utilisateur s'en souvient. L'ordre s'inverse, le
+            // plus recent d'abord — un historique se lit par le haut.
+            past: ChallengeSummary.weekly(
+                from: rows
+                    .filter { $0.state.isPast }
+                    .compactMap { $0.sessionRow(in: calendar) }
+            ).reversed(),
             calendar: ConsistencyCalendar.build(
                 outcomes: Self.outcomes(from: rows, calendar: calendar),
                 reference: reference,

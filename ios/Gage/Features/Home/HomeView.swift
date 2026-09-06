@@ -19,6 +19,7 @@ struct HomeView: View {
     /// Etat du compte : sert a prevenir d'un debit en souffrance.
     @State private var account: AccountState?
     @State private var isFixingPayment = false
+    @State private var isShowingHistory = false
 
     init(store: HomeStore = HomeStore()) {
         _store = State(wrappedValue: store)
@@ -67,13 +68,11 @@ struct HomeView: View {
         .task { await store.loadIfNeeded() }
         .task { await loadAccount() }
         .safeAreaInset(edge: .bottom) {
-            PrimaryButton(title: "Nouvel objectif", showsChevron: false) {
-                isCreating = true
-            }
-            .padding(.horizontal, Theme.Spacing.screenHorizontal)
-            .padding(.top, Theme.Spacing.medium)
-            .padding(.bottom, Theme.Spacing.small)
-            .background(Theme.Gradients.bottomFade)
+            bottomBar
+                .padding(.horizontal, Theme.Spacing.screenHorizontal)
+                .padding(.top, Theme.Spacing.medium)
+                .padding(.bottom, Theme.Spacing.small)
+                .background(Theme.Gradients.bottomFade)
         }
         .fullScreenCover(isPresented: $isCreating) {
             NewGoalFlowView {
@@ -91,6 +90,9 @@ struct HomeView: View {
         }
         .sheet(isPresented: $isShowingProfile) {
             ProfileView(assiduity: assiduity)
+        }
+        .sheet(isPresented: $isShowingHistory) {
+            HistoryView(past: pastChallenges)
         }
         // La capture ne peut pas s'ouvrir depuis la fiche : une feuille
         // modale ne peut pas en presenter une seconde. La fiche depose donc
@@ -120,6 +122,55 @@ struct HomeView: View {
                 Task { await store.reload() }
             }
         }
+    }
+
+    // MARK: - Barre du bas
+
+    /// Deux actions cote a cote : creer, et regarder derriere soi.
+    ///
+    /// Le « + » garde le libelle « Nouvel objectif » pour qui n'a que la voix
+    /// ou le clavier : un bouton dont le nom est un signe de ponctuation
+    /// n'est pas annonçable.
+    private var bottomBar: some View {
+        HStack(spacing: Theme.Spacing.small + 2) {
+            Button {
+                isCreating = true
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 26, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.onBrand)
+                    .frame(width: 61, height: 61)
+                    .background(Circle().fill(Theme.Gradients.brand))
+            }
+            .accessibilityLabel("Nouvel objectif")
+
+            Button {
+                isShowingHistory = true
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.system(size: 17, weight: .semibold))
+                    Text("Historique")
+                }
+                .font(Theme.Fonts.button)
+                .foregroundStyle(Theme.Colors.ink)
+                .frame(maxWidth: .infinity, minHeight: 61)
+                .background {
+                    Capsule().fill(Theme.Colors.card)
+                }
+                .overlay {
+                    Capsule().strokeBorder(Theme.Colors.placeholderBorder, lineWidth: 1)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Defis termines, ou une liste vide tant que rien n'est charge :
+    /// l'historique doit pouvoir s'ouvrir meme pendant un chargement.
+    private var pastChallenges: [ChallengeSummary] {
+        if case .loaded(let snapshot) = store.state { return snapshot.past }
+        return []
     }
 
     private func loadAccount() async {

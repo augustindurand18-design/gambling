@@ -71,6 +71,14 @@ extension GoalState {
         }
     }
 
+    /// L'objectif appartient-il a l'historique ?
+    ///
+    /// Un brouillon n'y figure pas : il n'a jamais rien engage, et le montrer
+    /// parmi des promesses tenues ou perdues raconterait une histoire fausse.
+    var isPast: Bool {
+        !isActive && self != .draft
+    }
+
     /// L'utilisateur a-t-il de l'argent engage a cet instant ?
     var hasMoneyAtRisk: Bool {
         isActive || self == .closedFailed || self == .chargePending || self == .chargeFailed
