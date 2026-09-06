@@ -70,6 +70,7 @@ targets:
         GageSupabaseURL: $(SUPABASE_URL)
         GageSupabaseAnonKey: $(SUPABASE_ANON_KEY)
         GageStripePublishableKey: $(STRIPE_PUBLISHABLE_KEY)
+        GagePaymentManagementURL: $(PAYMENT_MANAGEMENT_URL)
         GageSentryDSN: $(SENTRY_DSN)
         GageTelemetryDeckAppID: $(TELEMETRYDECK_APP_ID)
     settings:
@@ -77,7 +78,18 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.augustindurand.gage
         PRODUCT_NAME: Gage
     # Entitlements desactives tant qu'il n'y a pas de compte Apple Developer :
-    # aps-environment et Sign in with Apple exigent un profil de provisioning.
+    # aps-environment, Sign in with Apple et Apple Pay exigent un profil de
+    # provisioning. Les activer avant que le compte ne fonctionne casserait la
+    # compilation sur appareil pour tout le monde, y compris pour ceux dont la
+    # signature marche : le profil doit d'abord contenir l'identifiant marchand.
+    #
+    # Le jour ou le compte marche, dans l'ordre : creer l'identifiant marchand
+    # `merchant.com.augustindurand.gage` sur developer.apple.com, l'associer au
+    # compte Stripe, puis decommenter la ligne ci-dessous.
+    #
+    #   entitlements:
+    #     path: Gage/Gage.entitlements
+    #
     # Le simulateur n'a besoin d'aucune signature. A reactiver le jour de
     # l'inscription au programme (voir Gage.entitlements, deja pret).
     dependencies:

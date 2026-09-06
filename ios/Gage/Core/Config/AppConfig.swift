@@ -39,6 +39,23 @@ enum AppConfig {
 
     static var stripePublishableKey: String? { string(for: "GageStripePublishableKey") }
 
+    // MARK: - Apple Pay
+
+    /// Identifiant marchand, declare dans l'entitlement `in-app-payments`.
+    ///
+    /// Les deux doivent rester identiques : un ecart ne se voit pas a la
+    /// compilation, il fait juste disparaitre le bouton Apple Pay.
+    static let appleMerchantID = "merchant.com.augustindurand.gage"
+
+    /// Page ou l'utilisateur retrouve et gere ses debits a venir.
+    ///
+    /// Apple l'exige pour declarer un paiement differe, et l'affiche dans le
+    /// Wallet a cote de la carte. Tant qu'elle manque, Apple Pay n'est pas
+    /// propose : voir `CardEnrollmentView`.
+    static var paymentManagementURL: URL? {
+        string(for: "GagePaymentManagementURL").flatMap(URL.init(string:))
+    }
+
     // MARK: - Observabilite (optionnelles)
 
     static var sentryDSN: String? { string(for: "GageSentryDSN") }

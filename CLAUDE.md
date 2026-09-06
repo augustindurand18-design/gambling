@@ -265,6 +265,21 @@ abandonné en silence, même après correction.
 
 ## Décisions
 _(date + décision + raison)_
+- 2026-09-06 : **Apple Pay proposé à l'enregistrement de la carte, mais
+  conditionné**. Apple Pay n'enregistre pas un numéro de carte, il enregistre un
+  jeton propre à l'appareil, et tout le modèle repose sur un débit `off_session`
+  déclenché des jours plus tard. Apple veut que cette intention soit annoncée à
+  l'enregistrement (`PKDeferredPaymentRequest`), ce qui exige une **page de
+  gestion des débits à venir** — qui n'existe pas encore. Tant que
+  `PAYMENT_MANAGEMENT_URL` est vide, Apple Pay n'est **pas** proposé et seule la
+  saisie de carte reste : un refus de débit sur jeton non déclaré serait
+  invisible à l'enregistrement et n'apparaîtrait qu'au moment où quelqu'un rate
+  son objectif. Reste à faire, dans cet ordre : la page de gestion, puis
+  l'identifiant marchand `merchant.com.augustindurand.gage` sur
+  developer.apple.com, son association au compte Stripe, l'activation des
+  entitlements dans `project.yml` — et **un débit off-session réellement exécuté
+  en mode test** sur un moyen de paiement enregistré via Apple Pay avant de
+  considérer que ça marche.
 - 2026-09-06 : **on développe contre la base distante**, plus en local. Le
   projet est `gdqzpjlexyvtamrtergk` (Objectify), en **eu-west-1 (Irlande)** et
   non à Francfort comme décidé le 2026-09-02 : la région effective contredit la

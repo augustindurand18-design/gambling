@@ -1,3 +1,4 @@
+import PassKit
 import StripePaymentSheet
 import SwiftUI
 
@@ -180,6 +181,7 @@ struct CardEnrollmentView: View {
             // application bancaire ne sait pas comment revenir ici.
             configuration.returnURL = "gage://stripe-redirect"
             configuration.allowsDelayedPaymentMethods = false
+            configuration.applePay = Self.applePayConfiguration()
 
             phase = .ready(
                 PaymentSheet(
@@ -193,6 +195,58 @@ struct CardEnrollmentView: View {
             phase = .failed(message)
             errorMessage = message
         }
+    }
+
+    // MARK: - Apple Pay
+
+    /// Apple Pay, mais seulement s'il peut être déclaré comme paiement différé.
+    ///
+    /// Ce n'est pas un scrupule de forme. Apple Pay n'enregistre pas un numéro
+    /// de carte mais un jeton propre à l'appareil, et tout Gage repose sur un
+    /// débit `off_session` déclenché des jours plus tard, sans personne devant
+    /// le téléphone. Apple demande que cette intention soit annoncée à
+    /// l'enregistrement, via `PKDeferredPaymentRequest` ; sans elle, le
+    /// prélèvement ultérieur peut être refusé.
+    ///
+    /// Un tel refus serait invisible ici et n'apparaîtrait qu'au seul moment
+    /// qui compte, celui où quelqu'un a raté son objectif. On préfère donc ne
+    /// pas proposer Apple Pay du tout tant que la page de gestion — exigée par
+    /// Apple pour cette déclaration — n'existe pas. C'est l'invariant 2 :
+    /// jamais de débit sur un doute.
+    private static func applePayConfiguration() -> PaymentSheet.ApplePayConfiguration? {
+        guard let managementURL = AppConfig.paymentManagementURL else {
+            Log.payment.notice(
+                "Apple Pay non proposé : GagePaymentManagementURL absente"
+            )
+            return nil
+        }
+
+        // Le montant exact n'est pas connu à l'enregistrement — il dépend des
+        // objectifs à venir. On annonce donc le plafond par objectif, qui est
+        // le maximum possible par conception.
+        let ceiling = NSDecimalNumber(value: Double(BusinessRules.defaultPerGoalCapCents) / 100)
+
+        return .init(
+            merchantId: AppConfig.appleMerchantID,
+            merchantCountryCode: "FR",
+            customHandlers: .init(paymentRequestHandler: { request in
+                let billing = PKDeferredPaymentSummaryItem(
+                    label: "Mise maximale par objectif",
+                    amount: ceiling
+                )
+                // Une date est obligatoire. Le débit réel survient à l'échéance
+                // d'un objectif ; la semaine est le cycle du produit.
+                billing.deferredDate = Date().addingTimeInterval(7 * 24 * 3600)
+
+                request.deferredPaymentRequest = PKDeferredPaymentRequest(
+                    paymentDescription:
+                        "Mise engagée sur tes objectifs. Débitée uniquement si un objectif est manqué.",
+                    deferredBilling: billing,
+                    managementURL: managementURL
+                )
+                return request
+            })
+        )
     }
 
     private func handle(_ result: PaymentSheetResult) {
