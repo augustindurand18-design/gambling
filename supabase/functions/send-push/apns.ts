@@ -20,8 +20,13 @@ export interface PushMessage {
   goalId: string;
   title: string;
   body: string;
-  /** Échéance de la fenêtre de preuve, en ISO 8601. */
-  proofDeadlineAt: string;
+  /**
+   * Échéance de la fenêtre de preuve, en ISO 8601.
+   *
+   * Nulle pour un verdict : il n'ouvre aucun délai, il annonce une décision
+   * déjà prise.
+   */
+  proofDeadlineAt: string | null;
   apnsToken: string;
   /** `sandbox` ou `production`, tel qu'enregistré par l'appareil. */
   env: string;
@@ -75,8 +80,15 @@ export function buildApnsHeaders(
     "apns-topic": bundleId,
     "apns-push-type": "alert",
     "apns-priority": "10",
+    // Sans échéance — un verdict — le message reste distribuable une journée :
+    // il annonce une décision qui, elle, ne se périme pas. Apprendre avec du
+    // retard qu'une mise a été prélevée vaut mieux que ne jamais l'apprendre.
     "apns-expiration": String(
-      Math.floor(new Date(message.proofDeadlineAt).getTime() / 1000),
+      Math.floor(
+        (message.proofDeadlineAt
+          ? new Date(message.proofDeadlineAt).getTime()
+          : Date.now() + 24 * 3600_000) / 1000,
+      ),
     ),
     "content-type": "application/json",
   };

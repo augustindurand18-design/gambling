@@ -23,6 +23,20 @@ const MAX_ATTEMPTS = 5;
 /** Une demande de preuve d'hier n'a plus aucun sens à être livrée. */
 const MAX_AGE_HOURS = 24;
 
+/**
+ * Ce que dit une notification de verdict.
+ *
+ * Le montant n'y figure pas. Une notification s'affiche sur un écran
+ * verrouillé, potentiellement devant d'autres personnes : ce que quelqu'un a
+ * perdu ne les regarde pas.
+ */
+function verdictText(outcome: unknown, title: string): { title: string; body: string } {
+  if (outcome === "kept") {
+    return { title: "C'est validé", body: `${title} — tu as tenu, rien ne t'est débité.` };
+  }
+  return { title: "Preuve refusée", body: `${title} — ouvre l'app pour voir pourquoi.` };
+}
+
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method !== "POST") {
     return errorResponse("Méthode non autorisée", 405);
@@ -49,14 +63,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
   // Seuls les objectifs déjà ouverts sont annoncés. Une ligne dont le cron n'a
   // pas encore ouvert la fenêtre — parce que l'utilisateur n'a aucun appareil,
   // par exemple — n'a rien à annoncer.
+  // Deux natures de message, une seule file. L'ouverture de fenêtre n'est
+  // annoncée que si la fenêtre est encore ouverte — une demande d'hier n'a
+  // plus de sens. Le verdict, lui, se dit quel que soit l'état courant : il
+  // annonce une décision déjà prise, et la taire parce que l'objectif a
+  // depuis changé d'état priverait quelqu'un de la seule nouvelle qui compte.
   const { data: pending, error } = await db
     .from("notification_schedule")
-    .select("id, goal_id, user_id, attempts, fire_at, goals!inner(title, state, proof_deadline_at)")
-    .eq("kind", "proof_window_open")
+    .select("id, kind, goal_id, user_id, attempts, fire_at, payload, goals!inner(title, state, proof_deadline_at)")
+    .in("kind", ["proof_window_open", "verdict"])
     .is("sent_at", null)
     .lt("attempts", MAX_ATTEMPTS)
     .gt("fire_at", new Date(Date.now() - MAX_AGE_HOURS * 3600_000).toISOString())
-    .eq("goals.state", "proof_window_open")
     .limit(200);
 
   if (error) {
@@ -69,8 +87,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
   for (const row of pending ?? []) {
     const goal = row.goals as unknown as {
       title: string;
+      state: string;
       proof_deadline_at: string | null;
     };
+
+    // Une fenêtre refermée depuis n'a plus rien à annoncer : l'utilisateur
+    // recevrait « tu as 15 minutes » pour une échéance déjà passée.
+    if (row.kind === "proof_window_open" && goal.state !== "proof_window_open") {
+      continue;
+    }
 
     // La tentative est comptée avant l'envoi, pas après : si la fonction meurt
     // en plein vol, la ligne ne doit pas être reprise indéfiniment à l'identique.
@@ -98,14 +123,22 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const errors: string[] = [];
 
     for (const device of devices) {
-      const message: PushMessage = {
-        goalId: row.goal_id,
-        title: "C'est le moment",
-        body: `${goal.title} — tu as 15 minutes pour envoyer ta preuve.`,
-        proofDeadlineAt: goal.proof_deadline_at ?? row.fire_at,
-        apnsToken: device.apns_token,
-        env: device.env,
-      };
+      const message: PushMessage = row.kind === "verdict"
+        ? {
+          goalId: row.goal_id,
+          ...verdictText(row.payload?.outcome, goal.title),
+          proofDeadlineAt: null,
+          apnsToken: device.apns_token,
+          env: device.env,
+        }
+        : {
+          goalId: row.goal_id,
+          title: "C'est le moment",
+          body: `${goal.title} — tu as 15 minutes pour envoyer ta preuve.`,
+          proofDeadlineAt: goal.proof_deadline_at ?? row.fire_at,
+          apnsToken: device.apns_token,
+          env: device.env,
+        };
 
       const result = await transport.send(message);
 

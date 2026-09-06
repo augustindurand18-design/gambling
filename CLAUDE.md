@@ -33,7 +33,7 @@ réelles (RLS, triggers, permissions de schéma) n'étaient pas visibles à la
 lecture et n'ont été trouvées qu'en lançant le schéma contre une vraie base.
 
 ```bash
-supabase test db                                      # 122 tests
+supabase test db                                      # 128 tests
 deno test supabase/functions --allow-env --no-check   # 69 tests
 ./scripts/ios-test.sh                                 # 68 tests
 ```
@@ -274,6 +274,16 @@ _(date + décision + raison)_
   confiance sous 0,8 et l'échantillon aléatoire de 5 %. À réexaminer avant la
   bêta : c'est la garde qui empêchait l'IA de trancher seule jusqu'au plafond
   de 100 €.
+- 2026-09-06 : **le verdict est notifié** (`0040`). L'écran de preuve renonce
+  au bout de 40 s et ne peut pas faire mieux — une reprise après
+  indisponibilité prend plusieurs minutes. Sans notification, quelqu'un qui a
+  fermé l'application n'apprenait **jamais** qu'une mise avait été prélevée.
+  L'annonce est posée par la base à la transition, pas par `verify-proof` :
+  c'est la base qui fait autorité sur les états (invariant 1), et une décision
+  du cron — échéance close, revue oubliée — doit s'annoncer autant qu'une
+  décision du modèle. Une seule annonce par objectif, sur `closed_kept` /
+  `closed_failed` seulement : `validated` et `rejected` sont des étapes, et le
+  cycle de débit fait encore bouger l'état après la clôture.
 - 2026-09-06 : **une indisponibilité du modèle ne tranche plus** (`0039`).
   Un `429` de Gemini produisait un verdict définitif — `uncertain`, donc
   validé au bénéfice du doute : une photo d'ordinateur est passée pour une
