@@ -15,6 +15,16 @@ export interface VerdictResponse {
   confidence: number;
   reason: string;
   spoof_suspected: boolean;
+  /**
+   * Le modèle n'a pas pu regarder l'image, et pourrait y arriver plus tard :
+   * quota dépassé, panne réseau, erreur serveur.
+   *
+   * À distinguer d'une indisponibilité définitive — photo purgée, illisible —
+   * où réessayer ne donnera jamais rien. Seule la première mérite qu'on
+   * repose la question ; trancher dessus revient à valider une preuve que
+   * personne n'a vue.
+   */
+  transient?: boolean;
 }
 
 export interface PromptContext {

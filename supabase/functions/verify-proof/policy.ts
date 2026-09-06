@@ -92,11 +92,15 @@ export function checkImage(mediaType: string, byteLength: number): ImageCheck {
  * C'est l'invariant 2 appliqué à la lettre — une indisponibilité de notre côté
  * ne doit jamais coûter d'argent à qui que ce soit.
  */
-export function unavailableVerdict(reason: string): VerdictResponse {
+export function unavailableVerdict(
+  reason: string,
+  options: { transient?: boolean } = {},
+): VerdictResponse {
   return {
     verdict: "uncertain",
     confidence: 0,
     reason: `Verification automatique indisponible : ${reason}`,
     spoof_suspected: false,
+    transient: options.transient ?? false,
   };
 }

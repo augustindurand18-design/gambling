@@ -60,7 +60,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     .from("proofs")
     .select(
       "id, goal_id, user_id, storage_path, image_sha256, captured_at, " +
-        "server_received_at, exif, ondevice_precheck, " +
+        "server_received_at, exif, ondevice_precheck, verify_attempts, " +
         "goals!inner(title, proof_instruction, goal_type, state, timezone, " +
         "window_opened_at, proof_deadline_at, stakes(amount_cents))",
     )
@@ -93,6 +93,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   return json({ provider: provider.name, examined: pending?.length ?? 0, outcomes });
 });
+
+/**
+ * Nombre d'essais avant de renoncer a faire regarder l'image.
+ *
+ * Le battement passe toutes les minutes : cinq essais laissent quelques
+ * minutes a un quota pour se rouvrir, sans faire attendre indefiniment
+ * quelqu'un dont la mise est en jeu.
+ */
+const MAX_VERIFY_ATTEMPTS = 5;
 
 // deno-lint-ignore no-explicit-any
 async function verifyOne(db: any, provider: ReturnType<typeof selectProvider>, proof: any) {
@@ -143,6 +152,33 @@ async function verifyOne(db: any, provider: ReturnType<typeof selectProvider>, p
     answer = await askModel(db, provider, proof, goal, antiCheat.flags);
   }
 
+  // Le modele n'a pas pu regarder l'image, et il pourrait y arriver au tour
+  // suivant. Trancher maintenant reviendrait a valider une preuve que
+  // personne n'a vue — n'importe qui obtiendrait une validation en soumettant
+  // pendant une saturation.
+  //
+  // On ne renonce qu'apres `MAX_VERIFY_ATTEMPTS` : au-dela, la preuve
+  // resterait en suspens indefiniment si le quota ne rouvrait jamais, et
+  // c'est l'utilisateur qui attendrait pour une panne qui n'est pas la
+  // sienne. Ce renoncement-la valide (invariant 2).
+  const attempts = (proof.verify_attempts ?? 0) + 1;
+
+  if (answer.transient && attempts < MAX_VERIFY_ATTEMPTS) {
+    await db
+      .from("proofs")
+      .update({ verify_attempts: attempts, ai_reason: answer.reason })
+      .eq("id", proof.id);
+
+    await transitionGoal(db, {
+      goalId: proof.goal_id,
+      toState: "proof_submitted",
+      actor: "verify-proof",
+      reason: `reprise ${attempts}/${MAX_VERIFY_ATTEMPTS} : ${answer.reason}`,
+    });
+
+    return "retry";
+  }
+
   const decision = routeVerdict({ verdict: answer, antiCheat, stakeAmountCents });
 
   const finalVerdict = decision.route === "validated"
@@ -162,6 +198,7 @@ async function verifyOne(db: any, provider: ReturnType<typeof selectProvider>, p
       ai_model: answer.model,
       ai_raw: answer.raw,
       ai_completed_at: new Date().toISOString(),
+      verify_attempts: attempts,
       final_verdict: finalVerdict,
       decided_by: finalVerdict ? "ai" : null,
       decided_at: finalVerdict ? new Date().toISOString() : null,

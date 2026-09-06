@@ -30,7 +30,13 @@ enum GoalStateMachine {
 
         // Toute erreur de verification part en revue humaine, jamais en rejet
         // automatique : on ne debite pas sur un doute technique.
-        .aiVerifying: [.validated, .rejected, .humanReview],
+        //
+        // Le retour en `proofSubmitted` est la seule transition en arriere de
+        // la machine : le modele n'a pas pu repondre — quota, panne — et la
+        // preuve retourne en file. Elle ne revient pas sur une decision, elle
+        // dit qu'aucune n'a encore pu etre prise. Doit rester identique a
+        // `0039` : aucune verification automatique ne detecte une divergence.
+        .aiVerifying: [.validated, .rejected, .humanReview, .proofSubmitted],
 
         // Echantillon aleatoire anti-fraude sur un verdict favorable.
         .validated: [.closedKept, .humanReview],

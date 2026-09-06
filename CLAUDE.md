@@ -34,7 +34,7 @@ lecture et n'ont été trouvées qu'en lançant le schéma contre une vraie base
 
 ```bash
 supabase test db                                      # 122 tests
-deno test supabase/functions --allow-env --no-check   # 66 tests
+deno test supabase/functions --allow-env --no-check   # 69 tests
 ./scripts/ios-test.sh                                 # 68 tests
 ```
 
@@ -274,6 +274,16 @@ _(date + décision + raison)_
   confiance sous 0,8 et l'échantillon aléatoire de 5 %. À réexaminer avant la
   bêta : c'est la garde qui empêchait l'IA de trancher seule jusqu'au plafond
   de 100 €.
+- 2026-09-06 : **une indisponibilité du modèle ne tranche plus** (`0039`).
+  Un `429` de Gemini produisait un verdict définitif — `uncertain`, donc
+  validé au bénéfice du doute : une photo d'ordinateur est passée pour une
+  séance de sport, et n'importe qui pouvait obtenir une validation en
+  soumettant pendant une saturation. La preuve retourne en `proof_submitted`
+  et le battement la reprend ; on ne renonce (en validant) qu'après cinq
+  essais. Distinction essentielle : un quota ou une panne réseau se réessaie,
+  une photo purgée ou illisible non — insister ne ferait que geler la mise.
+  Ajoute `ai_verifying → proof_submitted`, **seule transition en arrière** de
+  la machine, des deux côtés.
 - 2026-09-06 : **sans relecteur, le routage suit le modèle.** Première
   version : tout ce qui partait en revue était validé — y compris quand le
   modèle avait dit non, puisque l'EXIF manquant ou une confiance faible

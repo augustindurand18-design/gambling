@@ -107,13 +107,13 @@ async function callAnthropic(
       }),
     });
   } catch (error) {
-    return { parsed: unavailableVerdict(`reseau (${error})`), raw: { error: String(error) } };
+    return { parsed: unavailableVerdict(`reseau (${error})`, { transient: true }), raw: { error: String(error) } };
   }
 
   if (!response.ok) {
     const detail = await response.text();
     return {
-      parsed: unavailableVerdict(`API ${response.status}`),
+      parsed: unavailableVerdict(`API ${response.status}`, { transient: true }),
       raw: { status: response.status, body: detail.slice(0, 2000) },
     };
   }
@@ -173,7 +173,7 @@ export function geminiProvider(
         });
       } catch (error) {
         return {
-          ...unavailableVerdict(`reseau (${error})`),
+          ...unavailableVerdict(`reseau (${error})`, { transient: true }),
           model,
           raw: { error: String(error) },
         };
@@ -182,7 +182,7 @@ export function geminiProvider(
       if (!response.ok) {
         const detail = await response.text();
         return {
-          ...unavailableVerdict(`API ${response.status}`),
+          ...unavailableVerdict(`API ${response.status}`, { transient: true }),
           model,
           raw: { status: response.status, body: detail.slice(0, 2000) },
         };

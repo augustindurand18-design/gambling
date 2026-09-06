@@ -162,3 +162,30 @@ Deno.test("le fournisseur indisponible rend un verdict sans appeler personne", a
   assertEquals(answer.verdict, "uncertain");
   assertEquals(answer.model, "none");
 });
+
+// --- Indisponibilité transitoire ou définitive -------------------------------
+
+Deno.test("un quota ou une panne reseau se reessaie", () => {
+  // Le modele n'a pas regarde l'image et pourrait y arriver dans une minute.
+  // Trancher maintenant validerait une preuve que personne n'a vue : c'est ce
+  // qui est arrive le 2026-09-06 avec un `429` de Gemini, une photo
+  // d'ordinateur passant pour une seance de sport.
+  assertEquals(unavailableVerdict("API 429", { transient: true }).transient, true);
+  assertEquals(unavailableVerdict("reseau (timeout)", { transient: true }).transient, true);
+});
+
+Deno.test("une indisponibilite definitive ne se reessaie pas", () => {
+  // Une photo purgee ou illisible le restera : insister ne ferait que
+  // maintenir la preuve en suspens, mise gelee, sans aucune chance d'aboutir.
+  assertEquals(unavailableVerdict("photo purgee").transient, false);
+  assertEquals(unavailableVerdict("photo illisible").transient, false);
+  assertEquals(unavailableVerdict("aucune cle de modele configuree").transient, false);
+});
+
+Deno.test("une indisponibilite reste un doute, jamais un rejet", () => {
+  // Quelle qu'en soit la cause : une panne de notre cote ne doit couter
+  // d'argent a personne.
+  assertEquals(unavailableVerdict("API 429", { transient: true }).verdict, "uncertain");
+  assertEquals(unavailableVerdict("API 429", { transient: true }).confidence, 0);
+  assertEquals(unavailableVerdict("photo purgee").verdict, "uncertain");
+});
