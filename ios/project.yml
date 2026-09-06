@@ -73,6 +73,9 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.augustindurand.gage
         PRODUCT_NAME: Gage
+        # Le catalogue est ramasse par `sources: Gage` ; il faut encore nommer
+        # l'icone, sinon la cible se compile sans icone et sans avertissement.
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # Pas de DEVELOPMENT_TEAM ici. Config/Debug.xcconfig inclut
         # Secrets.xcconfig, qui le pose directement sur la cible : le
         # redeclarer en `$(DEVELOPMENT_TEAM)` serait une auto-reference, que

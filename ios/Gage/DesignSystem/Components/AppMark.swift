@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Marque de l'application : carte blanche arrondie portant la pastille
-/// violette. Placeholder assume tant que l'icone definitive n'est pas dessinee.
+/// Marque de l'application : carte blanche arrondie portant le monogramme.
 struct AppMark: View {
     var size: CGFloat = 64
 
@@ -10,9 +9,10 @@ struct AppMark: View {
             .fill(Theme.Colors.surface)
             .frame(width: size, height: size)
             .overlay {
-                Circle()
-                    .fill(Theme.Colors.brand)
-                    .frame(width: size * 0.34, height: size * 0.34)
+                let mark = size * 0.58
+                GageMark()
+                    .stroke(Theme.Gradients.brand, style: GageMark.stroke(for: mark))
+                    .frame(width: mark, height: mark)
             }
             .shadow(color: Theme.Colors.ink.opacity(0.06), radius: 12, y: 6)
             .accessibilityHidden(true)
