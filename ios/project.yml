@@ -73,11 +73,15 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.augustindurand.gage
         PRODUCT_NAME: Gage
-        # Signature automatique, equipe lue dans Config/Secrets.xcconfig (non
-        # versionne) : chacun signe avec la sienne. Sur simulateur la valeur
-        # peut rester vide, Xcode signe alors en ad-hoc tout seul.
+        # Pas de DEVELOPMENT_TEAM ici. Config/Debug.xcconfig inclut
+        # Secrets.xcconfig, qui le pose directement sur la cible : le
+        # redeclarer en `$(DEVELOPMENT_TEAM)` serait une auto-reference, que
+        # Xcode resout en chaine vide tout en ecrasant la valeur du xcconfig.
+        # Il retombe alors sur l'equipe par defaut du compte connecte, dont
+        # l'App ID n'a pas forcement la capability Push — et Xcode retire
+        # `aps-environment` du build sans rien dire. C'est exactement ce qui
+        # est arrive le 2026-09-06.
         CODE_SIGN_STYLE: Automatic
-        DEVELOPMENT_TEAM: $(DEVELOPMENT_TEAM)
     # `aps-environment` seul. Sign in with Apple n'est pas utilise (l'auth
     # passe par un code e-mail) et l'identifiant marchand Apple Pay
     # `merchant.com.augustindurand.gage` n'existe pas encore sur
